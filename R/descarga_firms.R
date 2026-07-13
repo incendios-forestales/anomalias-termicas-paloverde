@@ -78,18 +78,28 @@ descargar_firms_fragmento <- function(fragmento, data_id, bbox,
   # Cada solicitud de área consume ~10 transacciones del límite de 5000/10 min;
   # si se agota, el API responde HTTP 400 con "Exceeding allowed transaction
   # limit": se espera 60 s por intento hasta que la ventana se libere.
-  resp <- httr2::request(url) |>
-    httr2::req_retry(
-      max_tries = 12,
-      backoff = function(i) 60,
-      is_transient = function(r) {
-        httr2::resp_status(r) %in% c(429, 500, 502, 503) ||
-          (httr2::resp_status(r) == 400 &&
-             grepl("transaction limit", httr2::resp_body_string(r), fixed = TRUE))
-      }
-    ) |>
-    httr2::req_perform()
-  cuerpo <- httr2::resp_body_string(resp)
+  intentos <- 0L
+  repeat {
+    intentos <- intentos + 1L
+    resp <- httr2::request(url) |>
+      httr2::req_error(is_error = function(r) FALSE) |>
+      httr2::req_perform()
+    estado <- httr2::resp_status(resp)
+    cuerpo <- httr2::resp_body_string(resp)
+    limite <- estado == 400L && grepl("transaction limit", cuerpo, fixed = TRUE)
+    transitorio <- estado %in% c(429L, 500L, 502L, 503L)
+    if (!limite && !transitorio) break
+    if (intentos >= 12L) {
+      stop("El API de FIRMS siguió rechazando ", basename(destino), " tras ",
+           intentos, " intentos: ", substr(cuerpo, 1, 100), call. = FALSE)
+    }
+    message(glue::glue("[espera] API saturado (HTTP {estado}); reintento en 60 s ({intentos}/12)"))
+    Sys.sleep(60)
+  }
+  if (estado != 200L) {
+    stop("HTTP ", estado, " del API de FIRMS para ", basename(destino), ": ",
+         substr(cuerpo, 1, 200), call. = FALSE)
+  }
 
   # El API puede devolver mensajes de error como texto con estatus 200:
   # un CSV válido siempre inicia con el encabezado (columna latitude).
