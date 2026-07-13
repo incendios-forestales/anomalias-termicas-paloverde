@@ -133,12 +133,11 @@ grafico_serie_temporal <- function(mensual, dest) {
 # Climatología mensual: promedio de detecciones por mes calendario
 # (estacionalidad de la época seca).
 grafico_climatologia <- function(mensual, dest) {
+  meses_es <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                "Jul", "Ago", "Set", "Oct", "Nov", "Dic")
   clima <- mensual |>
     dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
-    dplyr::mutate(nombre_mes = factor(
-      month.abb[mes],
-      levels = month.abb
-    ))
+    dplyr::mutate(nombre_mes = factor(meses_es[mes], levels = meses_es))
   p <- ggplot2::ggplot(clima, ggplot2::aes(x = nombre_mes, y = promedio)) +
     ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 0.7) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
