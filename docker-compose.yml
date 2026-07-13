@@ -1,0 +1,29 @@
+name: anomalias-termicas-paloverde
+services:
+  rstudio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: anomalias-termicas-paloverde:local
+    container_name: anomalias-termicas-paloverde-rstudio
+    ports:
+      - "8787:8787"
+    environment:
+      PASSWORD: ${RSTUDIO_PASSWORD:-rstudio}
+      USER: rstudio
+      USERID: 1000
+      GROUPID: 1000
+      ROOT: "true"
+      DISABLE_AUTH: "false"
+      # Zona horaria local: sin esto el contenedor corre en UTC y `date: today`
+      # del reporte Quarto adelanta un día al renderizar por la tarde, generando
+      # un diff de fecha espurio. Ajustable desde el host con la var TZ.
+      TZ: ${TZ:-America/Costa_Rica}
+    volumes:
+      - .:/home/rstudio/project
+      - renv-cache:/home/rstudio/.cache/R/renv
+    working_dir: /home/rstudio/project
+    restart: unless-stopped
+
+volumes:
+  renv-cache:

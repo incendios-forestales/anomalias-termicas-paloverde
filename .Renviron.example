@@ -1,0 +1,4 @@
+# Copie este archivo a .Renviron (en la raíz del proyecto) e ingrese su clave.
+# La clave (MAP_KEY) es gratuita y se solicita en:
+#   https://firms.modaps.eosdis.nasa.gov/api/map_key/
+FIRMS_MAP_KEY=

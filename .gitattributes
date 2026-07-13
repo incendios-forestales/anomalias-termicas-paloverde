@@ -1,0 +1,26 @@
+* text=auto eol=lf
+
+*.R        text eol=lf
+*.Rmd      text eol=lf
+*.qmd      text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+*.md       text eol=lf
+*.sh       text eol=lf
+*.csv      text eol=lf
+Dockerfile text eol=lf
+
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.mp4      binary
+*.pdf      binary
+*.gpkg     binary
+*.tif      binary
+*.tiff     binary
+*.zip      binary
+*.shp      binary
+*.shx      binary
+*.dbf      binary
+*.prj      binary

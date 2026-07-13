@@ -1,0 +1,93 @@
+---
+title: "Anomalías térmicas en el Parque Nacional Palo Verde"
+subtitle: "Detecciones del sensor MODIS (producto MODIS_SP de NASA FIRMS)"
+author: "Organización Incendios Forestales"
+date: today
+lang: es
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "Contenido"
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: configuracion
+library(targets)
+almacen <- here::here("_targets")
+tar_source(here::here("R"))
+```
+
+## Introducción
+
+Este reporte presenta las anomalías térmicas (detecciones de fuego activo)
+registradas por el sensor MODIS en el
+[Parque Nacional Palo Verde](https://www.sinac.go.cr/), Costa Rica.
+Los datos provienen del producto **MODIS_SP** (procesamiento estándar) del
+sistema [FIRMS](https://firms.modaps.eosdis.nasa.gov/) de la NASA, y el
+límite del parque del
+[WFS del SINAC](https://geos1pne.sirefor.go.cr/wfs).
+
+```{r}
+#| label: datos
+firms_parque <- tar_read(firms_parque, store = almacen)
+firms_mensual <- tar_read(firms_mensual, store = almacen)
+rango <- range(firms_parque$acq_date)
+```
+
+El período analizado va del **`r format(rango[1], "%d/%m/%Y")`** al
+**`r format(rango[2], "%d/%m/%Y")`**, con un total de
+**`r nrow(firms_parque)`** detecciones dentro del parque.
+
+## Mapa animado
+
+Detecciones mensuales de anomalías térmicas; el color indica la potencia
+radiativa del fuego (FRP).
+
+![](`r tar_read(anim_gif, store = almacen) |> here::here()`)
+
+## Mapa interactivo
+
+Use el deslizador temporal para explorar las detecciones a través del tiempo;
+cada punto muestra sus atributos al pulsarlo.
+
+```{r}
+#| label: mapa-interactivo
+parque <- tar_read(parque, store = almacen)
+crear_mapa_temporal(firms_parque, parque)
+```
+
+## Estadísticas
+
+### Serie temporal mensual
+
+![](`r tar_read(fig_serie, store = almacen) |> here::here()`)
+
+### Climatología mensual (estacionalidad)
+
+![](`r tar_read(fig_climatologia, store = almacen) |> here::here()`)
+
+### Resumen anual
+
+```{r}
+#| label: tabla-resumen
+crear_tabla_resumen(firms_parque)
+```
+
+## Fuentes de datos
+
+- **NASA FIRMS** — Fire Information for Resource Management System,
+  producto MODIS_SP (MODIS Collection 6.1, procesamiento estándar).
+  <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: NASA FIRMS,
+  *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
+- **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica,
+  capa de áreas silvestres protegidas (WFS).
+  <https://geos1pne.sirefor.go.cr/wfs>.
+
+El código de este análisis está disponible en
+<https://github.com/incendios-forestales/anomalias-termicas-paloverde>.
