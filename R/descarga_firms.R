@@ -44,9 +44,11 @@ construir_fragmentos <- function(rango, dias = FIRMS_DIAS_FRAGMENTO,
     inicio = pmax(inicio, rango[["inicio"]]),
     fin    = pmin(fin, rango[["fin"]])
   )
+  # La clave de grupo es la fecha de inicio (estable ante ampliaciones del
+  # rango); un número de fila desplazaría todas las ramas al anteponer
+  # fragmentos.
   fragmentos |>
-    dplyr::mutate(fragmento = dplyr::row_number()) |>
-    dplyr::group_by(fragmento) |>
+    dplyr::group_by(inicio) |>
     targets::tar_group()
 }
 
@@ -73,8 +75,19 @@ descargar_firms_fragmento <- function(fragmento, data_id, bbox,
     "{FIRMS_BASE}/area/csv/{firms_map_key()}/{data_id}/{area}/{rango_dias}/{inicio}"
   )
   message(glue::glue("[descarga] {data_id} {inicio} a {fin}"))
+  # Cada solicitud de área consume ~10 transacciones del límite de 5000/10 min;
+  # si se agota, el API responde HTTP 400 con "Exceeding allowed transaction
+  # limit": se espera 60 s por intento hasta que la ventana se libere.
   resp <- httr2::request(url) |>
-    httr2::req_retry(max_tries = 4, backoff = function(i) 2^i) |>
+    httr2::req_retry(
+      max_tries = 12,
+      backoff = function(i) 60,
+      is_transient = function(r) {
+        httr2::resp_status(r) %in% c(429, 500, 502, 503) ||
+          (httr2::resp_status(r) == 400 &&
+             grepl("transaction limit", httr2::resp_body_string(r), fixed = TRUE))
+      }
+    ) |>
     httr2::req_perform()
   cuerpo <- httr2::resp_body_string(resp)
 
@@ -89,6 +102,6 @@ descargar_firms_fragmento <- function(fragmento, data_id, bbox,
   temporal <- paste0(destino, ".part")
   writeLines(cuerpo, temporal)
   file.rename(temporal, destino)
-  Sys.sleep(0.2)  # cortesía con el límite de transacciones del API
+  Sys.sleep(1)  # ritmo bajo el límite de transacciones (~500 solicitudes/10 min)
   destino
 }
