@@ -16,7 +16,8 @@ tar_source("R")
 tar_option_set(
   packages = c(
     "sf", "dplyr", "tidyr", "purrr", "readr", "lubridate", "glue", "httr2",
-    "ggplot2", "gganimate", "leaflet", "leaflet.extras2", "htmlwidgets", "DT"
+    "ggplot2", "gganimate", "gifski", "av", "leaflet", "leaflet.extras2",
+    "yyjsonr", "htmlwidgets", "DT", "here", "quarto"
   ),
   format = "rds"
 )
