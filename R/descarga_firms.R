@@ -5,10 +5,44 @@
 #   GET {base}/data_availability/csv/{MAP_KEY}/{SOURCE}
 #   GET {base}/area/csv/{MAP_KEY}/{SOURCE}/{oeste,sur,este,norte}/{rango_dias}/{fecha_inicio}
 
+# Solicitud GET al API de FIRMS con reintentos. Cada solicitud de área consume
+# ~10 transacciones del límite de 5000/10 min; al agotarse, el API responde
+# HTTP 400 ("Exceeding allowed transaction limit") o incluso 401 mientras la
+# clave está saturada: se espera y reintenta hasta que la ventana se libere.
+# Retorna el cuerpo de la respuesta como texto.
+firms_solicitar <- function(url, max_intentos = 12L, espera_s = 60) {
+  intentos <- 0L
+  repeat {
+    intentos <- intentos + 1L
+    resp <- httr2::request(url) |>
+      httr2::req_error(is_error = function(r) FALSE) |>
+      httr2::req_perform()
+    estado <- httr2::resp_status(resp)
+    cuerpo <- httr2::resp_body_string(resp)
+    saturado <- (estado == 400L && grepl("transaction limit", cuerpo, fixed = TRUE)) ||
+      estado %in% c(401L, 429L, 500L, 502L, 503L)
+    if (!saturado) break
+    if (intentos >= max_intentos) {
+      stop("El API de FIRMS siguió rechazando la solicitud tras ", intentos,
+           " intentos (HTTP ", estado, "): ", substr(cuerpo, 1, 100),
+           ". Si persiste, verifique FIRMS_MAP_KEY.", call. = FALSE)
+    }
+    message(glue::glue(
+      "[espera] API de FIRMS saturado (HTTP {estado}); reintento en {espera_s} s ({intentos}/{max_intentos})"
+    ))
+    Sys.sleep(espera_s)
+  }
+  if (estado != 200L) {
+    stop("HTTP ", estado, " del API de FIRMS: ", substr(cuerpo, 1, 200),
+         call. = FALSE)
+  }
+  cuerpo
+}
+
 # Rango de fechas disponible para una fuente: c(inicio, fin) como Date.
 firms_disponibilidad <- function(data_id) {
   url <- glue::glue("{FIRMS_BASE}/data_availability/csv/{firms_map_key()}/{data_id}")
-  df <- utils::read.csv(url, stringsAsFactors = FALSE)
+  df <- utils::read.csv(text = firms_solicitar(url), stringsAsFactors = FALSE)
   fila <- df[df$data_id == data_id, ]
   if (nrow(fila) != 1) {
     stop("data_availability no devolvió la fuente ", data_id, call. = FALSE)
@@ -44,9 +78,11 @@ construir_fragmentos <- function(rango, dias = FIRMS_DIAS_FRAGMENTO,
     inicio = pmax(inicio, rango[["inicio"]]),
     fin    = pmin(fin, rango[["fin"]])
   )
+  # La clave de grupo es la fecha de inicio (estable ante ampliaciones del
+  # rango); un número de fila desplazaría todas las ramas al anteponer
+  # fragmentos.
   fragmentos |>
-    dplyr::mutate(fragmento = dplyr::row_number()) |>
-    dplyr::group_by(fragmento) |>
+    dplyr::group_by(inicio) |>
     targets::tar_group()
 }
 
@@ -73,10 +109,7 @@ descargar_firms_fragmento <- function(fragmento, data_id, bbox,
     "{FIRMS_BASE}/area/csv/{firms_map_key()}/{data_id}/{area}/{rango_dias}/{inicio}"
   )
   message(glue::glue("[descarga] {data_id} {inicio} a {fin}"))
-  resp <- httr2::request(url) |>
-    httr2::req_retry(max_tries = 4, backoff = function(i) 2^i) |>
-    httr2::req_perform()
-  cuerpo <- httr2::resp_body_string(resp)
+  cuerpo <- firms_solicitar(url)
 
   # El API puede devolver mensajes de error como texto con estatus 200:
   # un CSV válido siempre inicia con el encabezado (columna latitude).
@@ -89,6 +122,6 @@ descargar_firms_fragmento <- function(fragmento, data_id, bbox,
   temporal <- paste0(destino, ".part")
   writeLines(cuerpo, temporal)
   file.rename(temporal, destino)
-  Sys.sleep(0.2)  # cortesía con el límite de transacciones del API
+  Sys.sleep(1)  # ritmo bajo el límite de transacciones (~500 solicitudes/10 min)
   destino
 }

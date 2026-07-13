@@ -2,12 +2,21 @@
 # conversión a sf, recorte al parque y agregación mensual.
 
 # Lee y une los CSV de todos los fragmentos. Fragmentos sin detecciones
-# contienen solo el encabezado y aportan 0 filas.
+# contienen solo el encabezado y aportan 0 filas; se lee todo como carácter
+# (un CSV vacío haría que read_csv adivinara tipos incompatibles al unir)
+# y luego se convierten las columnas numéricas presentes.
 leer_y_unir_csv <- function(paths) {
+  numericas <- c("latitude", "longitude", "brightness", "bright_t31",
+                 "bright_ti4", "bright_ti5", "scan", "track", "frp")
+  enteras <- c("acq_time", "type")
   paths |>
-    purrr::map(\(p) readr::read_csv(p, show_col_types = FALSE)) |>
+    purrr::map(\(p) readr::read_csv(p, col_types = readr::cols(.default = "c"))) |>
     purrr::list_rbind() |>
-    dplyr::distinct()
+    dplyr::distinct() |>
+    dplyr::mutate(
+      dplyr::across(dplyr::any_of(numericas), as.numeric),
+      dplyr::across(dplyr::any_of(enteras), as.integer)
+    )
 }
 
 # Convierte el data frame crudo a puntos sf en WGS84 y deriva campos temporales.
