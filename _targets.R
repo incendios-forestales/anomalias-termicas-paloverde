@@ -16,7 +16,7 @@ tar_source("R")
 tar_option_set(
   packages = c(
     "sf", "dplyr", "tidyr", "purrr", "readr", "lubridate", "glue", "httr2",
-    "ggplot2", "gganimate", "gifski", "av", "leaflet", "leaflet.extras2",
+    "ggplot2", "gganimate", "gifski", "av", "plotly", "leaflet", "leaflet.extras2",
     "yyjsonr", "htmlwidgets", "DT", "here", "quarto"
   ),
   format = "rds"
@@ -79,6 +79,12 @@ list(
              format = "file"),
   tar_target(fig_climatologia,
              grafico_climatologia(firms_mensual, "outputs/figs/climatologia_mensual.png"),
+             format = "file"),
+  tar_target(fig_serie_html,
+             grafico_serie_html(firms_mensual, "outputs/figs/serie_mensual.html"),
+             format = "file"),
+  tar_target(fig_climatologia_html,
+             grafico_climatologia_html(firms_mensual, "outputs/figs/climatologia_mensual.html"),
              format = "file"),
   tar_target(tabla_csv,
              tabla_resumen_csv(firms_parque, "outputs/tables/resumen_anual.csv"),
