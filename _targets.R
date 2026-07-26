@@ -17,7 +17,7 @@ tar_option_set(
   packages = c(
     "sf", "dplyr", "tidyr", "purrr", "readr", "lubridate", "glue", "httr2",
     "ggplot2", "gganimate", "gifski", "av", "plotly", "leaflet", "leaflet.extras2",
-    "yyjsonr", "htmlwidgets", "DT", "here", "quarto"
+    "yyjsonr", "htmlwidgets", "DT", "here", "quarto", "terra", "exactextractr"
   ),
   format = "rds"
 )
@@ -57,6 +57,11 @@ list(
   tar_target(firms_parque,  recortar_al_parque(firms_puntos, parque)),
   tar_target(firms_mensual, agregar_mensual(firms_parque)),
 
+  # --- Cobertura de la tierra (ESA WorldCover 2021) ------------------------
+  tar_target(archivos_worldcover, descargar_worldcover(bbox_descarga),
+             format = "file"),
+  tar_target(cobertura, extraer_cobertura(firms_parque, archivos_worldcover)),
+
   # --- Salidas: animaciones -------------------------------------------------
   tar_target(anim_gif,
              animar_detecciones(firms_parque, parque, firms_mensual,
@@ -85,6 +90,12 @@ list(
              format = "file"),
   tar_target(fig_climatologia_html,
              grafico_climatologia_html(firms_mensual, "outputs/figs/climatologia_mensual.html"),
+             format = "file"),
+  tar_target(fig_cobertura,
+             grafico_cobertura(cobertura, "outputs/figs/cobertura_detecciones.png"),
+             format = "file"),
+  tar_target(tabla_cobertura,
+             tabla_cobertura_csv(cobertura, "outputs/tables/cobertura_detecciones.csv"),
              format = "file"),
   tar_target(tabla_csv,
              tabla_resumen_csv(firms_parque, "outputs/tables/resumen_anual.csv"),
