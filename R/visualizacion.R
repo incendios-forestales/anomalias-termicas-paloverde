@@ -63,10 +63,20 @@ animar_detecciones <- function(puntos, parque, mensual, dest, fps = 4) {
 
 # Mapa interactivo leaflet con deslizador de tiempo (leaflet.extras2).
 # Retorna el widget (para incrustar en el reporte Quarto).
+#
+# El plugin del deslizador (leaflet.SliderControl) tiene tres limitaciones que
+# se corrigen aquí sin parchar el paquete:
+#   1. En modo rango omite el rótulo de fecha inicial (solo lo pinta al arrastrar).
+#   2. En modo rango borra el rótulo en CADA mouseup del documento.
+#   3. El rótulo se dibuja debajo de la barra, por lo que en "bottomleft" queda
+#      recortado por el borde del mapa (por eso el control va en "topright").
+# 1 y 2 se resuelven con onRender: se repinta el rótulo con el rango de fechas
+# seleccionado (los índices del deslizador corresponden al orden de los puntos).
+# `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
 crear_mapa_temporal <- function(puntos, parque) {
   puntos_wgs84 <- sf::st_transform(puntos, CRS_WGS84) |>
-    dplyr::mutate(time = as.POSIXct(acq_date, tz = "UTC")) |>
-    dplyr::arrange(time)
+    dplyr::arrange(acq_date) |>
+    dplyr::mutate(time = as.character(acq_date))
   parque_wgs84 <- sf::st_transform(parque, CRS_WGS84)
 
   m <- leaflet::leaflet() |>
@@ -88,15 +98,45 @@ crear_mapa_temporal <- function(puntos, parque) {
         "<br><strong>Satélite:</strong> ", satellite
       ),
       options = leaflet.extras2::timesliderOptions(
-        position = "bottomleft",
+        position = "topright",
         timeAttribute = "time",
         range = TRUE,
-        alwaysShowDate = TRUE
+        alwaysShowDate = TRUE,
+        showAllOnStart = TRUE
       )
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
       position = "topright"
+    ) |>
+    htmlwidgets::onRender(
+      "function(el, x, data) {
+        var fechas = data.fechas;
+        // El plugin fija el máximo del deslizador en la cantidad de fechas
+        // ÚNICAS, pero usa los valores como índices de TODOS los puntos: con
+        // fechas repetidas el tirador superior queda recortado. Restaurar el
+        // máximo real y el rango completo.
+        $('#leaflet-slider').slider('option', 'max', fechas.length - 1);
+        $('#leaflet-slider').slider('values', [0, fechas.length - 1]);
+        var pintar = function(vals) {
+          var a = fechas[vals[0]], b = fechas[vals[1]];
+          $('#slider-timestamp')
+            .css({padding: '2px 6px', 'font-size': '12px', color: '#333'})
+            .html(a === b ? a : a + ' \\u2013 ' + b);
+        };
+        // setTimeout(0): correr DESPUÉS del mouseup del plugin, que borra el rótulo.
+        var repintar = function() {
+          var vals = $('#leaflet-slider').slider('values');
+          setTimeout(function() { pintar(vals); }, 0);
+        };
+        pintar([0, fechas.length - 1]);
+        $(document).on('mouseup', repintar);
+        $('#leaflet-slider').on('slidechange', repintar);
+        // El rótulo desborda el control del deslizador; separar el control de
+        // capas (mismo rincón topright) para que no lo tape.
+        $(el).find('.leaflet-control-layers').css('margin-top', '40px');
+      }",
+      data = list(fechas = puntos_wgs84$time)
     )
   m
 }
