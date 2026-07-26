@@ -66,11 +66,20 @@ crear_mapa_temporal(firms_parque, parque)
 
 ### Serie temporal mensual
 
-![](`r file.path("..", tar_read(fig_serie, store = almacen))`)
+Acerque con la rueda o arrastre una región para explorar un período; pase el
+cursor sobre una barra para ver el detalle del mes.
+
+```{r}
+#| label: serie-interactiva
+crear_serie_interactiva(firms_mensual)
+```
 
 ### Climatología mensual (estacionalidad)
 
-![](`r file.path("..", tar_read(fig_climatologia, store = almacen))`)
+```{r}
+#| label: climatologia-interactiva
+crear_climatologia_interactiva(firms_mensual)
+```
 
 ### Resumen anual
 
