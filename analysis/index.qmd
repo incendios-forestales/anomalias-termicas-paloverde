@@ -88,6 +88,25 @@ crear_climatologia_interactiva(firms_mensual)
 crear_tabla_resumen(firms_parque)
 ```
 
+## Cobertura de la tierra
+
+Cada detección MODIS corresponde a un píxel de ~1 km (mayor fuera del nadir),
+por lo que la cobertura se caracteriza sobre el *footprint* completo de la
+detección (una elipse con las dimensiones reales del píxel, columnas
+`scan` × `track`) y no sobre el punto exacto. El gráfico muestra cuántas
+detecciones tienen cada clase de [ESA WorldCover 2021](https://esa-worldcover.org/)
+(10 m) como cobertura dominante de su footprint.
+
+**Limitación**: WorldCover describe la cobertura de 2021, mientras que el
+registro de detecciones abarca 2001–2026; los cambios de cobertura en ese
+período no están representados.
+
+```{r}
+#| label: cobertura-interactiva
+cobertura <- tar_read(cobertura, store = almacen)
+crear_grafico_cobertura(cobertura, interactivo = TRUE)
+```
+
 ## Fuentes de datos
 
 - **NASA FIRMS** — Fire Information for Resource Management System,
@@ -97,6 +116,9 @@ crear_tabla_resumen(firms_parque)
 - **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica,
   capa de áreas silvestres protegidas (WFS).
   <https://geos1pne.sirefor.go.cr/wfs>.
+- **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
+  v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
+  *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
 
 El código de este análisis está disponible en
 <https://github.com/incendios-forestales/anomalias-termicas-paloverde>.
