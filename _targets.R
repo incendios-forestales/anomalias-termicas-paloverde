@@ -128,7 +128,16 @@ list(
              format = "file"),
 
   # --- Reporte Quarto → index.html en la raíz (GitHub Pages) ---------------
-  tar_quarto(reporte, "analysis/index.qmd"),
+  # El .qmd llama funciones de R/ directamente (crear_mapa_temporal,
+  # crear_grafico_cobertura, ...) que carga con tar_source(). tar_quarto solo
+  # detecta como dependencias los targets leídos con tar_read()/tar_load(), no
+  # esas funciones, así que sin `extra_files` un cambio en R/ dejaba el reporte
+  # sin regenerar (y publicaba una versión vieja). Cualquier cambio en R/
+  # invalida ahora el render; el costo es re-renderizar (~20 s) también cuando
+  # el cambio no afecta al reporte.
+  tar_quarto(reporte, "analysis/index.qmd",
+             extra_files = list.files("R", pattern = "[.][Rr]$",
+                                      full.names = TRUE)),
   tar_target(pagina_principal, {
     reporte  # dependencia explícita del render
     file.copy("analysis/index.html", "index.html", overwrite = TRUE)
