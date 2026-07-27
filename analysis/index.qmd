@@ -54,12 +54,18 @@ radiativa del fuego (FRP).
 ## Mapa interactivo
 
 Use el deslizador temporal para explorar las detecciones a través del tiempo;
-cada punto muestra sus atributos al pulsarlo.
+cada punto muestra sus atributos al pulsarlo, incluida la cobertura de la
+tierra dominante en su footprint. La capa de cobertura
+([ESA WorldCover 2021](https://esa-worldcover.org/)) puede activarse desde el
+control de capas.
 
 ```{r}
 #| label: mapa-interactivo
 parque <- tar_read(parque, store = almacen)
-crear_mapa_temporal(firms_parque, parque)
+cobertura_mapa <- tar_read(cobertura, store = almacen)
+worldcover <- tar_read(archivos_worldcover, store = almacen)
+bbox <- tar_read(bbox_descarga, store = almacen)
+crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox)
 ```
 
 ## Estadísticas

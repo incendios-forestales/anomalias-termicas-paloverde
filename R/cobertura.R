@@ -29,6 +29,34 @@ CLASES_WORLDCOVER <- c(
   `100` = "Musgos y líquenes"
 )
 
+# Paleta oficial de WorldCover (mismos valores de píxel que CLASES_WORLDCOVER).
+COLORES_WORLDCOVER <- c(
+  `10`  = "#006400",
+  `20`  = "#ffbb22",
+  `30`  = "#ffff4c",
+  `40`  = "#f096ff",
+  `50`  = "#fa0000",
+  `60`  = "#b4b4b4",
+  `70`  = "#f0f0f0",
+  `80`  = "#0064c8",
+  `90`  = "#0096a0",
+  `95`  = "#00cf75",
+  `100` = "#fae6a0"
+)
+
+# Raster WorldCover recortado a un bbox WGS84 c(oeste, sur, este, norte).
+recortar_worldcover <- function(archivos, bbox) {
+  capa <- if (length(archivos) > 1) {
+    terra::vrt(archivos)
+  } else {
+    terra::rast(archivos)
+  }
+  terra::crop(
+    capa,
+    terra::ext(bbox["oeste"], bbox["este"], bbox["sur"], bbox["norte"])
+  )
+}
+
 # Nombres de las teselas de 3x3 grados que intersecan un bbox WGS84
 # c(oeste, sur, este, norte) — el formato de bbox_con_buffer()
 # (esquina suroeste, p. ej. "N09W087").

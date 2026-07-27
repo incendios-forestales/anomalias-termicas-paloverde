@@ -73,15 +73,46 @@ animar_detecciones <- function(puntos, parque, mensual, dest, fps = 4) {
 # 1 y 2 se resuelven con onRender: se repinta el rótulo con el rango de fechas
 # seleccionado (los índices del deslizador corresponden al orden de los puntos).
 # `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
-crear_mapa_temporal <- function(puntos, parque) {
+crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
+                                bbox) {
+  # Clase de cobertura dominante por detección (id_deteccion es el número de
+  # fila de `puntos` en el orden en que extraer_cobertura() los recibió, por
+  # lo que el join debe hacerse ANTES de reordenar por fecha).
   puntos_wgs84 <- sf::st_transform(puntos, CRS_WGS84) |>
+    dplyr::mutate(fila = dplyr::row_number()) |>
+    dplyr::left_join(
+      clase_dominante(cobertura) |>
+        dplyr::select(id_deteccion, clase_cobertura = clase,
+                      fraccion_cobertura = fraccion),
+      by = c("fila" = "id_deteccion")
+    ) |>
     dplyr::arrange(acq_date) |>
     dplyr::mutate(time = as.character(acq_date))
   parque_wgs84 <- sf::st_transform(parque, CRS_WGS84)
 
+  # Capa de cobertura: raster categórico (method = "ngb" para no interpolar
+  # entre códigos de clase), oculta al inicio y conmutable desde el control.
+  recorte <- recortar_worldcover(archivos_worldcover, bbox)
+  valores <- sort(terra::unique(recorte)[[1]])
+  paleta <- leaflet::colorFactor(
+    unname(COLORES_WORLDCOVER[as.character(valores)]),
+    levels = valores, na.color = "transparent"
+  )
+  GRUPO_COBERTURA <- "Cobertura (WorldCover 2021)"
+
   m <- leaflet::leaflet() |>
     leaflet::addProviderTiles("CartoDB.Positron", group = "CartoDB") |>
     leaflet::addProviderTiles("Esri.WorldImagery", group = "Imágenes satelitales") |>
+    leaflet::addRasterImage(
+      recorte, colors = paleta, opacity = 0.7, method = "ngb",
+      group = GRUPO_COBERTURA, maxBytes = 10 * 1024^2
+    ) |>
+    leaflet::addLegend(
+      colors = unname(COLORES_WORLDCOVER[as.character(valores)]),
+      labels = unname(CLASES_WORLDCOVER[as.character(valores)]),
+      title = "Cobertura (2021)", position = "bottomright",
+      group = GRUPO_COBERTURA
+    ) |>
     leaflet::addPolygons(
       data = parque_wgs84, fill = FALSE, color = "#2b5876", weight = 2,
       label = "Parque Nacional Palo Verde"
@@ -95,7 +126,9 @@ crear_mapa_temporal <- function(puntos, parque) {
         "<br><strong>Hora (UTC):</strong> ", sprintf("%04d", acq_time),
         "<br><strong>FRP (MW):</strong> ", frp,
         "<br><strong>Confianza:</strong> ", confidence,
-        "<br><strong>Satélite:</strong> ", satellite
+        "<br><strong>Satélite:</strong> ", satellite,
+        "<br><strong>Cobertura dominante (2021):</strong> ", clase_cobertura,
+        " (", round(fraccion_cobertura * 100), " %)"
       ),
       options = leaflet.extras2::timesliderOptions(
         position = "topright",
@@ -107,8 +140,10 @@ crear_mapa_temporal <- function(puntos, parque) {
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
+      overlayGroups = GRUPO_COBERTURA,
       position = "topright"
     ) |>
+    leaflet::hideGroup(GRUPO_COBERTURA) |>
     htmlwidgets::onRender(
       "function(el, x, data) {
         var fechas = data.fechas;
@@ -142,8 +177,9 @@ crear_mapa_temporal <- function(puntos, parque) {
 }
 
 # Guarda el mapa temporal como HTML autocontenido (target con format = "file").
-mapa_leaflet_temporal <- function(puntos, parque, dest) {
-  m <- crear_mapa_temporal(puntos, parque)
+mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
+                                  bbox, dest) {
+  m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(m, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
