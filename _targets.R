@@ -65,10 +65,12 @@ list(
   # --- Salidas: animaciones -------------------------------------------------
   tar_target(anim_gif,
              animar_detecciones(firms_parque, parque, firms_mensual,
+                                archivos_worldcover, bbox_descarga,
                                 "outputs/figs/animacion_mensual.gif"),
              format = "file"),
   tar_target(anim_mp4,
              animar_detecciones(firms_parque, parque, firms_mensual,
+                                archivos_worldcover, bbox_descarga,
                                 "outputs/figs/animacion_mensual.mp4"),
              format = "file"),
 

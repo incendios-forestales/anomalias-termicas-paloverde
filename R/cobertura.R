@@ -57,6 +57,28 @@ recortar_worldcover <- function(archivos, bbox) {
   )
 }
 
+# Fondo de cobertura para el mapa animado: imagen RGBA pre-renderizada en
+# CRTM05 (una capa de celdas por cuadro haría lentísimo el render de ~300
+# cuadros de gganimate; annotation_raster dibuja un bitmap y es barato).
+# Se agrega a ~40 m (modal) — suficiente para un lienzo de 800 px — y se
+# atenúa con transparencia para no competir con los puntos de detección.
+fondo_cobertura_animacion <- function(archivos, bbox, alfa = 0.5) {
+  recorte <- recortar_worldcover(archivos, bbox) |>
+    terra::aggregate(fact = 4, fun = "modal", na.rm = TRUE) |>
+    terra::project(CRS_CRTM05, method = "near")
+  celdas <- terra::as.matrix(recorte, wide = TRUE)
+  colores <- grDevices::adjustcolor(
+    COLORES_WORLDCOVER[as.character(celdas)], alpha.f = alfa
+  )
+  colores[is.na(celdas)] <- "#00000000"
+  extension <- terra::ext(recorte)
+  list(
+    imagen = grDevices::as.raster(matrix(colores, nrow = nrow(celdas))),
+    xmin = extension$xmin, xmax = extension$xmax,
+    ymin = extension$ymin, ymax = extension$ymax
+  )
+}
+
 # Nombres de las teselas de 3x3 grados que intersecan un bbox WGS84
 # c(oeste, sur, este, norte) — el formato de bbox_con_buffer()
 # (esquina suroeste, p. ej. "N09W087").
