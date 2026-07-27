@@ -122,7 +122,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
       title = "Cobertura (2021)", position = "bottomright",
       group = GRUPO_COBERTURA
     ) |>
-    # Capas nacionales del SINAC (SIREFOR), conmutables y ocultas al inicio.
+    # Capas nacionales del SINAC, conmutables y ocultas al inicio.
     # Un solo tono por capa (la clase va en el popup): con la leyenda de
     # WorldCover ya presente, colorear por clase competiría por la lectura.
     # Geometrías simplificadas a 15 m (imperceptible a escala del parque):
