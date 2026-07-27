@@ -74,7 +74,8 @@ list(
 
   # --- Salidas: mapa interactivo -------------------------------------------
   tar_target(mapa_html,
-             mapa_leaflet_temporal(firms_parque, parque,
+             mapa_leaflet_temporal(firms_parque, parque, cobertura,
+                                   archivos_worldcover, bbox_descarga,
                                    "outputs/maps/mapa_temporal.html"),
              format = "file"),
 
