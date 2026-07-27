@@ -13,6 +13,13 @@ WFS_CAPA_ASP <- "PNE:areas_silvestres_protegidas"
 # El parque es una sola feature identificada por estos atributos
 WFS_FILTRO_PARQUE <- "nombre_asp='Palo Verde' AND cat_manejo='Parque Nacional'"
 
+# Capas nacionales de contexto (mismo geoserver). Se descargan recortadas al
+# bbox del parque. La cobertura forestal solo mapea clases de BOSQUE (no es
+# cobertura completa: sin pastizal ni cultivos); se usa la versión 2023, que
+# es la más detallada — la de 2021 clasifica casi todo como bosque secundario.
+WFS_CAPA_BOSQUE   <- "PNE:cobertura_forestal_2023"
+WFS_CAPA_HUMEDALES <- "PNE:registro_nacional_humedales"
+
 # --- NASA FIRMS ---
 FIRMS_BASE <- "https://firms.modaps.eosdis.nasa.gov/api"
 

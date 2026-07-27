@@ -22,6 +22,16 @@ download_if_missing <- function(url, dest, mode = "wb", timeout = 1800) {
   invisible(dest)
 }
 
+# Simplifica geometrías para publicación web y las devuelve en WGS84.
+# La tolerancia se aplica en CRTM05 (métrico); 15 m es imperceptible a la
+# escala del parque y reduce mucho el peso de los HTML autocontenidos.
+simplificar_para_web <- function(x, tolerancia_m = 15) {
+  x |>
+    a_crtm05() |>
+    sf::st_simplify(dTolerance = tolerancia_m, preserveTopology = TRUE) |>
+    sf::st_transform(CRS_WGS84)
+}
+
 # Bounding box con buffer alrededor de un polígono, en WGS84,
 # como vector nombrado c(oeste, sur, este, norte) para el API de FIRMS.
 bbox_con_buffer <- function(poligono, buffer_km = FIRMS_BUFFER_KM) {

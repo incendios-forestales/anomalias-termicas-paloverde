@@ -30,6 +30,19 @@ crear_tabla_resumen <- function(puntos) {
   )
 }
 
+# Contraste WorldCover vs. Registro Nacional de Humedales (widget DT).
+crear_tabla_contraste <- function(cobertura, humedales_detecciones) {
+  DT::datatable(
+    contraste_humedales(cobertura, humedales_detecciones),
+    colnames = c("Clase WorldCover", "Detecciones", "En humedal",
+                 "% en humedal", "Fracción del footprint en humedal"),
+    caption = paste("Detecciones por clase de WorldCover y su coincidencia con",
+                    "el Registro Nacional de Humedales (SINAC)"),
+    options = list(dom = "t"),
+    rownames = FALSE
+  )
+}
+
 tabla_resumen_html <- function(puntos, dest) {
   tabla <- crear_tabla_resumen(puntos)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
