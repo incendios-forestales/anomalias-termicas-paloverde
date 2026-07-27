@@ -177,7 +177,7 @@ resumen_cobertura <- function(cobertura) {
     dplyr::arrange(dplyr::desc(fraccion_promedio))
 }
 
-# --- Contraste con las capas nacionales (SIREFOR) ---------------------------
+# --- Contraste con las capas nacionales del SINAC ---------------------------
 # WorldCover clasifica como "Pastizal" buena parte de la marisma de Palo Verde.
 # Se contrasta cada footprint contra el Registro Nacional de Humedales para
 # verificar si esas detecciones ocurren en humedal registrado.

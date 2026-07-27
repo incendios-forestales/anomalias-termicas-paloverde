@@ -165,11 +165,9 @@ preferibles los productos con detalle espacial fino.
   producto MODIS_SP (MODIS Collection 6.1, procesamiento estándar).
   <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: NASA FIRMS,
   *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
-- **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica,
-  capa de áreas silvestres protegidas (WFS).
-  <https://geos1pne.sirefor.go.cr/wfs>.
-- **SINAC / SIREFOR** — Registro Nacional de Humedales y Cobertura Forestal
-  2023, descargadas del mismo WFS.
+- **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica.
+  Capas de áreas silvestres protegidas, Registro Nacional de Humedales y
+  Cobertura Forestal 2023, descargadas de su servicio WFS.
   <https://geos1pne.sirefor.go.cr/wfs>.
 - **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).

@@ -62,7 +62,7 @@ list(
              format = "file"),
   tar_target(cobertura, extraer_cobertura(firms_parque, archivos_worldcover)),
 
-  # --- Capas nacionales (SIREFOR): humedales y cobertura forestal ----------
+  # --- Capas nacionales del SINAC: humedales y cobertura forestal ----------
   tar_target(bbox_parque, sf::st_bbox(parque)),
   tar_target(archivo_humedales,
              descargar_capa_wfs(WFS_CAPA_HUMEDALES, bbox_parque,
