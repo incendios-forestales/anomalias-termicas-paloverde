@@ -81,7 +81,7 @@ animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
 # seleccionado (los índices del deslizador corresponden al orden de los puntos).
 # `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
 crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                bbox) {
+                                bbox, humedales = NULL, bosque = NULL) {
   # Clase de cobertura dominante por detección (id_deteccion es el número de
   # fila de `puntos` en el orden en que extraer_cobertura() los recibió, por
   # lo que el join debe hacerse ANTES de reordenar por fecha).
@@ -106,6 +106,8 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     levels = valores, na.color = "transparent"
   )
   GRUPO_COBERTURA <- "Cobertura (WorldCover 2021)"
+  GRUPO_HUMEDALES <- "Humedales (registro nacional)"
+  GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
 
   m <- leaflet::leaflet() |>
     leaflet::addProviderTiles("CartoDB.Positron", group = "CartoDB") |>
@@ -119,6 +121,31 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
       labels = unname(CLASES_WORLDCOVER[as.character(valores)]),
       title = "Cobertura (2021)", position = "bottomright",
       group = GRUPO_COBERTURA
+    ) |>
+    # Capas nacionales del SINAC (SIREFOR), conmutables y ocultas al inicio.
+    # Un solo tono por capa (la clase va en el popup): con la leyenda de
+    # WorldCover ya presente, colorear por clase competiría por la lectura.
+    # Geometrías simplificadas a 15 m (imperceptible a escala del parque):
+    # sin esto, los ~3900 polígonos de cobertura forestal triplican el peso
+    # del HTML autocontenido.
+    leaflet::addPolygons(
+      data = simplificar_para_web(humedales),
+      group = GRUPO_HUMEDALES,
+      fillColor = "#0096a0", fillOpacity = 0.35,
+      color = "#00707a", weight = 1,
+      popup = ~paste0(
+        "<strong>Humedal:</strong> ", nom_hum,
+        "<br><strong>Clase:</strong> ", clase_hum,
+        "<br><strong>Tipo:</strong> ", tipo_hum,
+        "<br><strong>Área (ha):</strong> ", round(area_ha)
+      )
+    ) |>
+    leaflet::addPolygons(
+      data = simplificar_para_web(bosque),
+      group = GRUPO_BOSQUE,
+      fillColor = "#006400", fillOpacity = 0.35,
+      color = "#004d00", weight = 0.5,
+      popup = ~paste0("<strong>Cobertura forestal:</strong> ", Clase)
     ) |>
     leaflet::addPolygons(
       data = parque_wgs84, fill = FALSE, color = "#2b5876", weight = 2,
@@ -147,10 +174,10 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
-      overlayGroups = GRUPO_COBERTURA,
+      overlayGroups = c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE),
       position = "topright"
     ) |>
-    leaflet::hideGroup(GRUPO_COBERTURA) |>
+    leaflet::hideGroup(c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
     htmlwidgets::onRender(
       "function(el, x, data) {
         var fechas = data.fechas;
@@ -185,8 +212,9 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
 
 # Guarda el mapa temporal como HTML autocontenido (target con format = "file").
 mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                  bbox, dest) {
-  m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox)
+                                  bbox, humedales, bosque, dest) {
+  m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox,
+                           humedales, bosque)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(m, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
@@ -251,18 +279,32 @@ grafico_climatologia <- function(mensual, dest) {
 # como segunda línea del título (<sup>) y la fuente como anotación.
 
 # Configuración común: barra de herramientas mínima y UI en español.
-configurar_plotly <- function(w, titulo, subtitulo, fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+# `margen_superior` debe crecer cuando el gráfico lleva leyenda arriba: la
+# leyenda se coloca justo sobre el área de trazado y con el margen por
+# defecto se traslapa con el subtítulo.
+configurar_plotly <- function(w, titulo, subtitulo,
+                              fuente = "Datos: NASA FIRMS (MODIS_SP)",
+                              margen_superior = 70, margen_inferior = 70,
+                              desplazamiento_fuente = -50) {
   w |>
     plotly::layout(
+      # Sin `y`/`yanchor`: plotly ubica el título dentro del margen superior;
+      # anclarlo explícitamente lo empuja fuera del contenedor.
       title = list(
         text = paste0("<b>", titulo, "</b><br><sup>", subtitulo, "</sup>"),
-        x = 0, xanchor = "left", font = list(size = 15)
+        x = 0, xanchor = "left", font = list(size = 18)
       ),
-      margin = list(t = 70, b = 60),
+      margin = list(t = margen_superior, b = margen_inferior),
+      # La fuente se ancla al borde inferior del área de trazado y se desplaza
+      # en PÍXELES (yshift): con un desplazamiento relativo (y = -0.16) su
+      # posición depende de la altura del gráfico y termina chocando con el
+      # rótulo del eje x. `desplazamiento_fuente` debe superar la altura de
+      # ese rótulo y caber dentro de `margen_inferior`.
       annotations = list(
         text = fuente, xref = "paper", yref = "paper",
-        x = 1, y = -0.18, xanchor = "right", yanchor = "top",
-        showarrow = FALSE, font = list(size = 10, color = "grey")
+        x = 1, y = 0, xanchor = "right", yanchor = "top",
+        yshift = desplazamiento_fuente,
+        showarrow = FALSE, font = list(size = 12, color = "grey")
       )
     ) |>
     plotly::config(

@@ -55,9 +55,10 @@ radiativa del fuego (FRP).
 
 Use el deslizador temporal para explorar las detecciones a través del tiempo;
 cada punto muestra sus atributos al pulsarlo, incluida la cobertura de la
-tierra dominante en su footprint. La capa de cobertura
-([ESA WorldCover 2021](https://esa-worldcover.org/)) puede activarse desde el
-control de capas.
+tierra dominante en su footprint. Desde el control de capas pueden activarse
+la cobertura ([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas
+nacionales del SINAC: el Registro Nacional de Humedales y la cobertura
+forestal 2023.
 
 ```{r}
 #| label: mapa-interactivo
@@ -65,7 +66,10 @@ parque <- tar_read(parque, store = almacen)
 cobertura_mapa <- tar_read(cobertura, store = almacen)
 worldcover <- tar_read(archivos_worldcover, store = almacen)
 bbox <- tar_read(bbox_descarga, store = almacen)
-crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox)
+humedales <- tar_read(humedales, store = almacen)
+bosque <- tar_read(bosque, store = almacen)
+crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
+                    humedales, bosque)
 ```
 
 ## Estadísticas
@@ -107,11 +111,53 @@ detecciones tienen cada clase de [ESA WorldCover 2021](https://esa-worldcover.or
 registro de detecciones abarca 2001–2026; los cambios de cobertura en ese
 período no están representados.
 
+Cada barra se divide además según la detección caiga o no dentro de un
+humedal del [Registro Nacional de Humedales](https://geos1pne.sirefor.go.cr/wfs)
+del SINAC. El humedal no es un tipo de vegetación que compita con *pastizal* o
+*bosque*, sino una condición del sitio: las capas del SINAC inventarían rasgos
+específicos (humedales, bosque) y no cubren todo el territorio, por lo que no
+pueden sustituir a WorldCover como clasificación exhaustiva, pero sí
+complementarla.
+
 ```{r}
 #| label: cobertura-interactiva
 cobertura <- tar_read(cobertura, store = almacen)
-crear_grafico_cobertura(cobertura, interactivo = TRUE)
+humedales_detecciones <- tar_read(humedales_detecciones, store = almacen)
+crear_grafico_cobertura(cobertura, humedales_detecciones, interactivo = TRUE)
 ```
+
+### Contraste con el Registro Nacional de Humedales
+
+La clase más frecuente, *pastizal*, merece una advertencia: WorldCover es un
+producto global y clasifica como pastizal buena parte de la marisma del
+parque.
+
+```{r}
+#| label: tabla-contraste
+crear_tabla_contraste(cobertura, humedales_detecciones)
+```
+
+El resultado confirma la sospecha: el **95,5 %** de las detecciones cuyo
+footprint domina el *pastizal* de WorldCover caen dentro de un humedal
+registrado, y en promedio el **81 %** del footprint está cubierto por
+humedal. Es decir, esas quemas no ocurren en potreros sino en el complejo de
+humedales del parque.
+
+**Advertencia sobre la clase de humedal**: el registro asigna una sola clase
+por polígono, y el polígono *Sector Catalina 1* (4 453 ha, clasificado como
+*Manglar*) cubre casi todo el sector estuarino del parque, por lo que
+concentra 148 detecciones. Eso **no** significa que esas quemas ocurran en
+manglar. Dentro de ese polígono, el manglar cubre apenas el **11,6 %** de la
+superficie según WorldCover —el 74 % es pastizal— y solo el **4,1 %** según
+la propia capa de Cobertura Forestal 2023 del SINAC, que sí mapea el manglar
+como una de sus clases.
+
+Es decir, `clase_hum` describe el tipo de humedal *como sitio* —un complejo
+estuarino cuyo rasgo distintivo es el manglar— y no la cobertura en cada
+punto de su extensión. El cruce con el registro es por tanto concluyente
+para responder si las detecciones ocurren en humedal, pero no para
+determinar qué tipo de vegetación se quemó; para eso siguen siendo
+preferibles los productos con detalle espacial fino.
 
 ## Fuentes de datos
 
@@ -121,6 +167,9 @@ crear_grafico_cobertura(cobertura, interactivo = TRUE)
   *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
 - **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica,
   capa de áreas silvestres protegidas (WFS).
+  <https://geos1pne.sirefor.go.cr/wfs>.
+- **SINAC / SIREFOR** — Registro Nacional de Humedales y Cobertura Forestal
+  2023, descargadas del mismo WFS.
   <https://geos1pne.sirefor.go.cr/wfs>.
 - **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
