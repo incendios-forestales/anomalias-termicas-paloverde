@@ -14,7 +14,8 @@ MESES_ES <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
 # los meses sin detecciones se representan con un cuadro vacío mediante puntos
 # fantasma invisibles, para que el tiempo avance a ritmo constante.
 # El formato de salida se infiere de la extensión de `dest` (.gif o .mp4).
-animar_detecciones <- function(puntos, parque, mensual, dest, fps = 4) {
+animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
+                               bbox, dest, fps = 4) {
   etiquetas <- format(mensual$aniomes, "%Y-%m")
   puntos <- puntos |>
     dplyr::mutate(cuadro = factor(format(aniomes, "%Y-%m"), levels = etiquetas))
@@ -26,19 +27,25 @@ animar_detecciones <- function(puntos, parque, mensual, dest, fps = 4) {
     geometry = rep(centro, length(etiquetas))
   )
 
+  fondo <- fondo_cobertura_animacion(archivos_worldcover, bbox)
   p <- ggplot2::ggplot() +
-    ggplot2::geom_sf(data = parque, fill = "grey95", color = "grey40",
-                     linewidth = 0.4) +
+    ggplot2::annotation_raster(fondo$imagen, xmin = fondo$xmin, xmax = fondo$xmax,
+                               ymin = fondo$ymin, ymax = fondo$ymax) +
+    ggplot2::geom_sf(data = parque, fill = NA, color = "grey30",
+                     linewidth = 0.5) +
     ggplot2::geom_sf(data = fantasma, alpha = 0, show.legend = FALSE) +
-    ggplot2::geom_sf(data = puntos, ggplot2::aes(color = frp),
-                     size = 2, alpha = 0.8) +
-    ggplot2::scale_color_viridis_c(option = "inferno", direction = -1,
-                                   trans = "sqrt", na.value = "transparent",
-                                   name = "FRP (MW)") +
+    # shape 21 con borde oscuro: sin él, las detecciones de FRP bajo (extremo
+    # claro de inferno) se camuflan contra el pastizal amarillo del fondo.
+    ggplot2::geom_sf(data = puntos, ggplot2::aes(fill = frp),
+                     shape = 21, size = 2.4, stroke = 0.3,
+                     color = "grey15", alpha = 0.9) +
+    ggplot2::scale_fill_viridis_c(option = "inferno", direction = -1,
+                                  trans = "sqrt", na.value = "transparent",
+                                  name = "FRP (MW)") +
     ggplot2::labs(
       title = "Anomalías térmicas en el Parque Nacional Palo Verde",
       subtitle = "Detecciones MODIS (FIRMS) — mes: {current_frame}",
-      caption = "Datos: NASA FIRMS (MODIS_SP) y SINAC"
+      caption = "Datos: NASA FIRMS (MODIS_SP) y SINAC. Fondo: ESA WorldCover 2021"
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
