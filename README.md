@@ -2,9 +2,10 @@
 
 Pipeline reproducible en R que descarga las anomalías térmicas (detecciones de
 fuego activo) del producto **MODIS_SP** de [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/)
-para el **Parque Nacional Palo Verde** (Costa Rica) y genera un **mapa animado a
-través del tiempo**, un mapa interactivo con deslizador temporal, gráficos
-estadísticos y tablas.
+para el **Parque Nacional Palo Verde** (Costa Rica), caracteriza la **cobertura
+de la tierra** en la que ocurren y genera un **mapa animado a través del
+tiempo**, un mapa interactivo con deslizador temporal, gráficos estadísticos
+interactivos y tablas.
 
 **Productos en línea**: <https://incendios-forestales.github.io/anomalias-termicas-paloverde/>
 
@@ -13,13 +14,18 @@ estadísticos y tablas.
 El flujo de trabajo está implementado con [{targets}](https://books.ropensci.org/targets/):
 
 1. **Obtención de datos**
-   - Polígono del parque: WFS del SINAC (`PNE:areas_silvestres_protegidas`).
    - Detecciones: API de área de FIRMS, descargada en fragmentos de 5 días.
+   - Polígono del parque y capas nacionales (humedales, cobertura forestal):
+     WFS del SINAC.
+   - Cobertura de la tierra: teselas de ESA WorldCover 2021 (10 m) desde S3.
 2. **Procesamiento**: conversión a puntos `sf`, recorte estricto al polígono
    del parque y reproyección a CRTM05 (EPSG:5367); agregación mensual.
-3. **Salidas**: animación GIF/MP4 (gganimate), mapa leaflet con deslizador
-   temporal, serie temporal mensual, climatología (estacionalidad), tabla
-   resumen anual (CSV y HTML) y reporte Quarto (`index.html`).
+3. **Análisis de cobertura**: composición de clases en el *footprint* de cada
+   detección y contraste con el Registro Nacional de Humedales (ver más abajo).
+4. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, mapa
+   leaflet con deslizador temporal y capas conmutables, serie temporal mensual
+   y climatología (PNG + plotly interactivo), cobertura por clase, tablas
+   (CSV y HTML) y reporte Quarto (`index.html`).
 
 ### Descarga idempotente y reanudable
 
@@ -32,6 +38,27 @@ en `data/raw/firms/<data_id>/<inicio>_<fin>.csv`:
   (2000-11-01 + k·5 días), por lo que **ampliar el rango de fechas solo
   descarga los fragmentos nuevos** sin invalidar los existentes.
 - La escritura es atómica (`.part` → renombrar): nunca queda un CSV truncado.
+
+Las capas de contexto (WFS del SINAC, teselas de WorldCover) también se
+cachean en `data/raw/` y solo se descargan la primera vez.
+
+### Cobertura de la tierra por *footprint*
+
+Una detección MODIS no es un punto: es un píxel de ~1 km, mayor fuera del
+nadir. Asignarle la clase del punto exacto sobre un mapa de 10 m sería
+precisión espuria, así que la cobertura se caracteriza sobre el **footprint
+completo** —una elipse con las dimensiones reales del píxel, columnas `scan` ×
+`track`— y se reporta la fracción por clase y la clase dominante.
+
+El resultado se contrasta con el Registro Nacional de Humedales del SINAC.
+Dos advertencias que el reporte documenta:
+
+- WorldCover es una foto fija de 2021 frente a un registro de 2001–2026.
+- El registro de humedales asigna **una clase por polígono**, no por píxel:
+  sirve para determinar si un sitio es humedal, no qué vegetación ardió. Las
+  capas del SINAC son además inventarios de rasgos específicos (bosque,
+  humedales) y no cubren todo el territorio, por lo que complementan a
+  WorldCover pero no lo sustituyen como clasificación exhaustiva.
 
 ## Requisitos
 
@@ -92,9 +119,10 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 
 ```
 ├── _targets.R          # definición del pipeline
-├── R/                  # funciones (descarga WFS/FIRMS, procesamiento, visualización)
+├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
+│                       #   cobertura de la tierra, visualización y tablas
 ├── analysis/index.qmd  # reporte Quarto → index.html (GitHub Pages)
-├── data/               # datos crudos y procesados (no versionados)
+├── data/raw/           # caché de datos crudos (no versionada)
 ├── outputs/            # figuras, mapas y tablas generados
 ├── Dockerfile          # rocker/geospatial + paquetes del proyecto
 ├── docker-compose.yml  # RStudio Server (puerto 8787)
@@ -113,7 +141,16 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 
 - Incorporar otras fuentes de FIRMS: MODIS_NRT, VIIRS (SNPP/NOAA-20/NOAA-21) y
   área quemada (BA_MODIS, BA_VIIRS). La capa de descarga ya está parametrizada
-  por `data_id` (ver `FUENTES_FIRMS` en `R/constantes.R`).
+  por `data_id` (ver `FUENTES_FIRMS` en `R/constantes.R`). Cobra urgencia
+  porque las misiones Terra y Aqua terminan en 2027 y VIIRS es su continuidad:
+  las detecciones de distintos sensores **no deben sumarse** entre sí.
+- Desagregar la clase «Bosque» de WorldCover en los tipos de la Cobertura
+  Forestal del SINAC (deciduo, maduro, secundario), que aportan vocabulario
+  ecológico local — el bosque deciduo es el bosque seco característico del
+  parque.
+- Reestructurar el reporte para que solo lea targets (`tar_read()`) en lugar
+  de llamar funciones de `R/`; hoy esa dependencia se cubre con `extra_files`
+  en `tar_quarto()`.
 
 ## Licencia
 
