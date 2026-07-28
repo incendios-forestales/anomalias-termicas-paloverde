@@ -178,6 +178,22 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
       position = "topright"
     ) |>
     leaflet::hideGroup(c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
+    # Botón de pantalla completa con la API Fullscreen del navegador y el
+    # plugin EasyButton (incluido en el paquete leaflet base): evita agregar
+    # leaflet.extras solo para este control. Safari usa el prefijo webkit.
+    leaflet::addEasyButton(leaflet::easyButton(
+      position = "topleft",
+      icon = "<span style='font-size:18px;'>&#x26F6;</span>",
+      title = "Pantalla completa",
+      onClick = leaflet::JS("function(btn, map) {
+        var cont = map.getContainer();
+        if (document.fullscreenElement || document.webkitFullscreenElement) {
+          (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        } else {
+          (cont.requestFullscreen || cont.webkitRequestFullscreen).call(cont);
+        }
+      }")
+    )) |>
     htmlwidgets::onRender(
       "function(el, x, data) {
         var fechas = data.fechas;
@@ -204,6 +220,12 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         // El rótulo desborda el control del deslizador; separar el control de
         // capas (mismo rincón topright) para que no lo tape.
         $(el).find('.leaflet-control-layers').css('margin-top', '40px');
+        // Al entrar o salir de pantalla completa el contenedor cambia de
+        // tamaño sin disparar 'resize' de window; recalcular el mapa.
+        var mapa = this;
+        ['fullscreenchange', 'webkitfullscreenchange'].forEach(function(ev) {
+          el.addEventListener(ev, function() { mapa.invalidateSize(); });
+        });
       }",
       data = list(fechas = puntos_wgs84$time)
     )
