@@ -17,7 +17,8 @@ tar_option_set(
   packages = c(
     "sf", "dplyr", "tidyr", "purrr", "readr", "lubridate", "glue", "httr2",
     "ggplot2", "gganimate", "gifski", "av", "plotly", "leaflet", "leaflet.extras2",
-    "yyjsonr", "htmlwidgets", "DT", "here", "quarto", "terra", "exactextractr"
+    "yyjsonr", "htmlwidgets", "DT", "here", "quarto", "terra", "exactextractr",
+    "tibble"
   ),
   format = "rds"
 )
@@ -76,6 +77,13 @@ list(
   tar_target(bosque, sf::st_read(archivo_bosque, quiet = TRUE)),
   tar_target(humedales_detecciones, cruzar_con_humedales(firms_parque, humedales)),
 
+  # --- Contexto paisajístico: ¿borde del bosque o terreno abierto? ---------
+  tar_target(paisaje_parque,
+             composicion_paisaje(parque, archivos_worldcover, bbox_descarga)),
+  tar_target(borde_bosque,
+             contexto_borde(firms_parque, parque, archivos_worldcover,
+                            bbox_descarga)),
+
   # --- Salidas: animaciones -------------------------------------------------
   tar_target(anim_gif,
              animar_detecciones(firms_parque, parque, firms_mensual,
@@ -119,6 +127,9 @@ list(
   tar_target(tabla_contraste,
              tabla_contraste_csv(cobertura, humedales_detecciones,
                                  "outputs/tables/contraste_humedales.csv"),
+             format = "file"),
+  tar_target(tabla_borde,
+             tabla_borde_csv(borde_bosque, "outputs/tables/contexto_borde.csv"),
              format = "file"),
   tar_target(tabla_csv,
              tabla_resumen_csv(firms_parque, "outputs/tables/resumen_anual.csv"),
