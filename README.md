@@ -173,6 +173,12 @@ futuras) en [`R/constantes.R`](R/constantes.R).
   Forestal del SINAC (deciduo, maduro, secundario), que aportan vocabulario
   ecológico local — el bosque deciduo es el bosque seco característico del
   parque.
+- Modelar los factores de ignición con covariables de accesibilidad (cercanía
+  a caminos, linderos y zonas de cultivo). El análisis de contexto paisajístico
+  descarta que el patrón visual sea un efecto de borde, pero su modelo nulo
+  supone que cualquier punto del parque tiene la misma probabilidad de arder;
+  identificar la causa de las igniciones exige covariables que hoy no se
+  descargan.
 - Reestructurar el reporte para que solo lea targets (`tar_read()`) en lugar
   de llamar funciones de `R/`; hoy esa dependencia se cubre con `extra_files`
   en `tar_quarto()`.
