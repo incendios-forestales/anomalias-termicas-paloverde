@@ -27,7 +27,8 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
    real de una ilusión geométrica (ver más abajo).
 5. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, mapa
    leaflet con deslizador temporal, control de pantalla completa y capas
-   conmutables (detecciones, cobertura y capas del SINAC), serie temporal
+   conmutables (detecciones, límite del parque, cobertura y capas del
+   SINAC), serie temporal
    mensual y climatología (PNG + plotly interactivo), cobertura por clase,
    tablas (CSV y HTML) y reporte Quarto (`index.html`).
 

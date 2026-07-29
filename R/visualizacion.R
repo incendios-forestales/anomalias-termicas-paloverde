@@ -108,6 +108,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_COBERTURA <- "Cobertura (WorldCover 2021)"
   GRUPO_HUMEDALES <- "Humedales (registro nacional)"
   GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
+  GRUPO_PARQUE    <- "Límite del parque"
   # Las detecciones las dibuja el plugin del deslizador marcador por marcador,
   # fuera de todo grupo de leaflet: este grupo es solo el ancla del conmutador
   # en el control de capas; el mostrado/ocultado real se hace en onRender.
@@ -153,7 +154,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     ) |>
     leaflet::addPolygons(
       data = parque_wgs84, fill = FALSE, color = "#2b5876", weight = 2,
-      label = "Parque Nacional Palo Verde"
+      label = "Parque Nacional Palo Verde", group = GRUPO_PARQUE
     ) |>
     leaflet.extras2::addTimeslider(
       data = puntos_wgs84,
@@ -178,8 +179,8 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
-      overlayGroups = c(GRUPO_DETECCIONES, GRUPO_COBERTURA, GRUPO_HUMEDALES,
-                        GRUPO_BOSQUE),
+      overlayGroups = c(GRUPO_DETECCIONES, GRUPO_PARQUE, GRUPO_COBERTURA,
+                        GRUPO_HUMEDALES, GRUPO_BOSQUE),
       position = "topright"
     ) |>
     leaflet::hideGroup(c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
