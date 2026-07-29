@@ -17,23 +17,26 @@ COLOR_AREA_QUEMADA <- "#54278f"
 FUENTE_MCD64A1 <- "Datos: NASA LP DAAC (MCD64A1 v6.1)"
 
 # Abre la banda "Burn Date" de un HDF4-EOS2 de MCD64A1 como SpatRaster
-# (CRS sinusoidal MODIS). Se resuelve por nombre entre los subdatasets en
-# lugar de armar la cadena GDAL "HDF4_EOS:EOS_GRID:..." a mano: el nombre del
-# grid interno es un detalle del formato que puede variar entre colecciones.
+# (CRS sinusoidal MODIS). Se resuelve por nombre de variable con
+# terra::describe(sds = TRUE) en lugar de armar la cadena GDAL
+# "HDF4_EOS:EOS_GRID:..." a mano (el nombre del grid interno es un detalle
+# del formato) o de usar names(terra::sds()), que para estos HDF devuelve el
+# nombre del archivo, no el de la banda. En `var` los nombres con espacios
+# conservan las comillas del HDF ('"Burn Date"'); se comparan sin ellas.
 leer_burn_date <- function(path_hdf) {
   if (!"HDF4" %in% terra::gdal(drivers = TRUE)$name) {
     stop("El GDAL disponible no tiene el driver HDF4, necesario para leer ",
          "MCD64A1. Ejecute el pipeline en el contenedor del proyecto ",
          "(rocker/geospatial lo incluye).", call. = FALSE)
   }
-  subdatasets <- terra::sds(path_hdf)
-  indice <- which(names(subdatasets) == "Burn Date")
+  subdatasets <- terra::describe(path_hdf, sds = TRUE)
+  indice <- which(gsub('"', "", subdatasets$var) == "Burn Date")
   if (length(indice) != 1) {
     stop("No se encontró el subdataset 'Burn Date' en ", basename(path_hdf),
-         " (disponibles: ", paste(names(subdatasets), collapse = ", "), ").",
+         " (disponibles: ", paste(subdatasets$var, collapse = ", "), ").",
          call. = FALSE)
   }
-  subdatasets[indice]
+  terra::rast(subdatasets$name[indice])
 }
 
 # Extrae los píxeles quemados de todos los granulos dentro del parque.
