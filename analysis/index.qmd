@@ -116,7 +116,7 @@ período no están representados.
 
 Cada barra se divide además según la detección caiga o no dentro de un
 humedal del [Registro Nacional de Humedales](https://geos1pne.sirefor.go.cr/wfs)
-del SINAC. El humedal no es un tipo de vegetación que compita con *pastizal* o
+del SINAC (actualización 2016–2018 del Inventario Nacional de Humedales). El humedal no es un tipo de vegetación que compita con *pastizal* o
 *bosque*, sino una condición del sitio: las capas del SINAC inventarían rasgos
 específicos (humedales, bosque) y no cubren todo el territorio, por lo que no
 pueden sustituir a WorldCover como clasificación exhaustiva, pero sí
@@ -248,8 +248,9 @@ pero no identifica la causa de las igniciones.
   <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: NASA FIRMS,
   *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
 - **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica.
-  Capas de áreas silvestres protegidas, Registro Nacional de Humedales y
-  Cobertura Forestal 2023, descargadas de su servicio WFS.
+  Capas de áreas silvestres protegidas, Registro Nacional de Humedales
+  (actualización 2016–2018) y Cobertura Forestal 2023, descargadas de su
+  servicio WFS.
   <https://geos1pne.sirefor.go.cr/wfs>.
 - **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
