@@ -22,10 +22,14 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
    del parque y reproyección a CRTM05 (EPSG:5367); agregación mensual.
 3. **Análisis de cobertura**: composición de clases en el *footprint* de cada
    detección y contraste con el Registro Nacional de Humedales (ver más abajo).
-4. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, mapa
-   leaflet con deslizador temporal y capas conmutables, serie temporal mensual
-   y climatología (PNG + plotly interactivo), cobertura por clase, tablas
-   (CSV y HTML) y reporte Quarto (`index.html`).
+4. **Contexto paisajístico**: contraste de las detecciones contra un modelo
+   nulo de puntos aleatorios en el parque, para distinguir un efecto de borde
+   real de una ilusión geométrica (ver más abajo).
+5. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, mapa
+   leaflet con deslizador temporal, control de pantalla completa y capas
+   conmutables (detecciones, cobertura y capas del SINAC), serie temporal
+   mensual y climatología (PNG + plotly interactivo), cobertura por clase,
+   tablas (CSV y HTML) y reporte Quarto (`index.html`).
 
 ### Descarga idempotente y reanudable
 
@@ -59,6 +63,26 @@ Dos advertencias que el reporte documenta:
   capas del SINAC son además inventarios de rasgos específicos (bosque,
   humedales) y no cubren todo el territorio, por lo que complementan a
   WorldCover pero no lo sustituyen como clasificación exhaustiva.
+
+### Contexto paisajístico: ¿bordean el bosque o lo rodean?
+
+En el mapa las detecciones parecen dibujar el contorno del bloque forestal.
+Para distinguir un efecto de borde real de una ilusión geométrica —en un parque
+cuyo bosque es un bloque compacto, cualquier concentración en terreno abierto
+traza su silueta— se compara cada detección contra un modelo nulo de puntos
+aleatorios dentro del parque, midiendo la fracción de bosque en 500 m a la
+redonda.
+
+No hay efecto de borde: la categoría intermedia (20–80 % de bosque alrededor)
+no está sobrerrepresentada (25,4 % contra 28,2 % esperado por azar, *p* = 0,38).
+Lo que sí está desplazado son los extremos: las detecciones ocurren en terreno
+abierto casi al doble de lo esperado y en interior de bosque a menos de la
+mitad. **Las detecciones no bordean el bosque, lo rodean.**
+
+La métrica es la fracción de bosque en un vecindario y no la distancia al borde
+más cercano porque un `distance()` sobre el raster de 10 m del parque no
+termina en tiempo razonable. Implementación en
+[`R/contexto_paisaje.R`](R/contexto_paisaje.R).
 
 ## Requisitos
 
@@ -120,7 +144,8 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 ```
 ├── _targets.R          # definición del pipeline
 ├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
-│                       #   cobertura de la tierra, visualización y tablas
+│                       #   cobertura de la tierra, contexto paisajístico,
+│                       #   visualización y tablas
 ├── analysis/index.qmd  # reporte Quarto → index.html (GitHub Pages)
 ├── data/raw/           # caché de datos crudos (no versionada)
 ├── outputs/            # figuras, mapas y tablas generados
