@@ -2,3 +2,9 @@
 # La clave (MAP_KEY) es gratuita y se solicita en:
 #   https://firms.modaps.eosdis.nasa.gov/api/map_key/
 FIRMS_MAP_KEY=
+
+# Token de Earthdata Login (descarga del área quemada MCD64A1 desde LP DAAC).
+# Se genera con una cuenta gratuita en https://urs.earthdata.nasa.gov/
+# (Generate Token). Los tokens expiran a los ~60 días: si la descarga
+# devuelve HTTP 401, regenere el token y actualice este valor.
+EARTHDATA_TOKEN=

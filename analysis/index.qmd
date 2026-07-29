@@ -1,6 +1,6 @@
 ---
 title: "Anomalías térmicas en el Parque Nacional Palo Verde"
-subtitle: "Detecciones del sensor MODIS (producto MODIS_SP de NASA FIRMS)"
+subtitle: "Detecciones del sensor MODIS (MODIS_SP de NASA FIRMS) y área quemada (MCD64A1)"
 author: "Organización Incendios Forestales"
 date: today
 lang: es
@@ -63,7 +63,9 @@ tierra dominante en su footprint. El botón ⛶ de la esquina superior izquierda
 abre el mapa en pantalla completa.
 
 Desde el control de capas pueden apagarse las capas de detecciones y del
-límite del parque —útil para examinar el fondo— y activarse la cobertura
+límite del parque —útil para examinar el fondo— y activarse el área quemada
+(píxeles de MCD64A1, con su fecha de quema en el popup; esta capa no responde
+al deslizador temporal), la cobertura
 ([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas nacionales del
 SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
 
@@ -75,8 +77,9 @@ worldcover <- tar_read(archivos_worldcover, store = almacen)
 bbox <- tar_read(bbox_descarga, store = almacen)
 humedales <- tar_read(humedales, store = almacen)
 bosque <- tar_read(bosque, store = almacen)
+area_quemada_parque <- tar_read(area_quemada_parque, store = almacen)
 crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
-                    humedales, bosque)
+                    humedales, bosque, quemas = area_quemada_parque)
 ```
 
 ## Estadísticas
@@ -104,6 +107,50 @@ crear_climatologia_interactiva(firms_mensual)
 #| label: tabla-resumen
 crear_tabla_resumen(firms_parque)
 ```
+
+## Área quemada (MCD64A1)
+
+Las detecciones de fuego activo indican dónde había fuego al paso del
+satélite; el producto complementario **MCD64A1** (MODIS, colección 6.1) mapea
+el **área quemada**: para cada píxel de 500 m (~21,5 ha) registra el día en
+que la superficie quedó marcada por el fuego, a partir del cambio persistente
+de reflectancia. Aunque FIRMS lista este producto (`BA_MODIS`) y lo dibuja en
+su visor, su API no lo entrega como datos, por lo que el pipeline lo descarga
+del archivo original de la NASA (LP DAAC). El producto se publica con uno o
+dos meses de rezago: esta serie puede terminar antes que la de detecciones.
+
+```{r}
+#| label: serie-area-quemada
+area_quemada_mensual <- tar_read(area_quemada_mensual, store = almacen)
+crear_serie_area_quemada(area_quemada_mensual)
+```
+
+### Fuego activo y área quemada
+
+Las dos series son complementarias y **no sumables**: las detecciones cuentan
+eventos de fuego activo en el momento del sobrevuelo —un mismo incendio genera
+muchas detecciones a lo largo de días—, mientras que el área quemada mide la
+superficie que quedó marcada, contada una sola vez. Un mes con muchas
+detecciones y pocas hectáreas sugiere fuegos recurrentes en poca superficie
+(o fuegos menores que el píxel de 500 m); el caso inverso, una quema extensa
+y rápida entre sobrevuelos.
+
+```{r}
+#| label: comparacion-series
+crear_comparacion_series(firms_mensual, area_quemada_mensual)
+```
+
+### Resumen anual de área quemada
+
+```{r}
+#| label: tabla-area-quemada
+crear_tabla_area_quemada(area_quemada_parque)
+```
+
+**Limitación**: la unidad mínima de MCD64A1 es el píxel de 500 m: quemas
+menores pueden no detectarse y la superficie reportada es la del píxel
+completo, no la de la cicatriz interna. Las hectáreas anuales son por tanto
+una estimación gruesa, útil para comparar años y estaciones entre sí.
 
 ## Cobertura de la tierra
 
@@ -251,6 +298,10 @@ pero no identifica la causa de las igniciones.
   producto MODIS_SP (MODIS Collection 6.1, procesamiento estándar).
   <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: NASA FIRMS,
   *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
+- **NASA LP DAAC** — producto de área quemada MCD64A1 v6.1 (MODIS
+  Terra+Aqua, mensual, 500 m), descubierto vía el API CMR de Earthdata.
+  Giglio, L., et al. (2021). *MCD64A1 MODIS/Terra+Aqua Burned Area Monthly
+  L3 Global 500m SIN Grid V061*, DOI: 10.5067/MODIS/MCD64A1.061.
 - **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica.
   Capas de áreas silvestres protegidas (capa oficial 1:5000, publicada en
   2019), Registro Nacional de Humedales (actualización 2016–2018) y

@@ -40,8 +40,10 @@ ORIGEN_GRILLA <- as.Date("2000-11-01")
 # estrictamente al polígono.
 FIRMS_BUFFER_KM <- 5
 
-# Fuentes de FIRMS. Para incorporar otras (MODIS_NRT, VIIRS_*, BA_*) basta
+# Fuentes de FIRMS. Para incorporar otras (MODIS_NRT, VIIRS_*) basta
 # activarlas aquí y extender el grafo de targets con las fuentes activas.
+# El área quemada (BA_MODIS) NO se obtiene de FIRMS: su API la acepta pero
+# responde vacío siempre; se usa el producto original MCD64A1 (ver abajo).
 FUENTES_FIRMS <- data.frame(
   data_id = c("MODIS_SP", "MODIS_NRT", "VIIRS_SNPP_SP", "VIIRS_SNPP_NRT",
               "VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"),
@@ -57,4 +59,28 @@ firms_map_key <- function() {
          call. = FALSE)
   }
   clave
+}
+
+# --- LP DAAC / MCD64A1 (área quemada) ---
+# Búsqueda de granulos en el catálogo CMR de NASA (pública, sin credenciales).
+CMR_BASE <- "https://cmr.earthdata.nasa.gov/search"
+
+MCD64A1_SHORT_NAME <- "MCD64A1"
+MCD64A1_VERSION    <- "061"
+
+# Tesela de la rejilla sinusoidal MODIS que cubre el PN Palo Verde
+# (10.35 N, -85.35 O). extraer_quemas() verifica en tiempo de ejecución que
+# la tesela efectivamente cubra el parque.
+TESELA_MCD64A1 <- "h09v07"
+
+# Token de Earthdata Login, desde .Renviron (no versionado). A diferencia de
+# la MAP_KEY de FIRMS, los tokens de Earthdata expiran (~60 días).
+earthdata_token <- function() {
+  token <- Sys.getenv("EARTHDATA_TOKEN")
+  if (!nzchar(token)) {
+    stop("Falta EARTHDATA_TOKEN. Genere un token en https://urs.earthdata.nasa.gov/ ",
+         "(Generate Token) y agréguelo a .Renviron (ver .Renviron.example).",
+         call. = FALSE)
+  }
+  token
 }
