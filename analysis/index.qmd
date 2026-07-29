@@ -42,7 +42,11 @@ rango <- range(firms_parque$acq_date)
 
 El período analizado va del **`r format(rango[1], "%d/%m/%Y")`** al
 **`r format(rango[2], "%d/%m/%Y")`**, con un total de
-**`r nrow(firms_parque)`** detecciones dentro del parque.
+**`r nrow(firms_parque)`** detecciones dentro del parque. El límite del parque
+proviene de la capa oficial de áreas silvestres protegidas del SINAC (escala
+1:5000, publicada en 2019): está delimitado con una precisión muy superior a la
+de los píxeles MODIS (~1 km), así que el recorte no introduce error apreciable
+por la geometría del límite.
 
 ## Mapa animado
 
@@ -248,9 +252,9 @@ pero no identifica la causa de las igniciones.
   <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: NASA FIRMS,
   *MODIS Collection 6.1 Active Fire Detections*, DOI: 10.5067/FIRMS/MODIS/MCD14ML.
 - **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica.
-  Capas de áreas silvestres protegidas, Registro Nacional de Humedales
-  (actualización 2016–2018) y Cobertura Forestal 2023, descargadas de su
-  servicio WFS.
+  Capas de áreas silvestres protegidas (capa oficial 1:5000, publicada en
+  2019), Registro Nacional de Humedales (actualización 2016–2018) y
+  Cobertura Forestal 2023, descargadas de su servicio WFS.
   <https://geos1pne.sirefor.go.cr/wfs>.
 - **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
