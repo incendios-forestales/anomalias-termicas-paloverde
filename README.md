@@ -55,7 +55,8 @@ precisión espuria, así que la cobertura se caracteriza sobre el **footprint
 completo** —una elipse con las dimensiones reales del píxel, columnas `scan` ×
 `track`— y se reporta la fracción por clase y la clase dominante.
 
-El resultado se contrasta con el Registro Nacional de Humedales del SINAC.
+El resultado se contrasta con el Registro Nacional de Humedales del SINAC
+(actualización 2016–2018 del Inventario Nacional de Humedales).
 Dos advertencias que el reporte documenta:
 
 - WorldCover es una foto fija de 2021 frente a un registro de 2001–2026.
@@ -160,7 +161,7 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 | Fuente | Datos | Licencia/atribución |
 |---|---|---|
 | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Anomalías térmicas MODIS Collection 6.1 (MODIS_SP), DOI: 10.5067/FIRMS/MODIS/MCD14ML | Acceso abierto; se agradece atribución a NASA FIRMS |
-| [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales (`PNE:registro_nacional_humedales`) y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
+| [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales, actualización 2016–2018 (`PNE:registro_nacional_humedales`), y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura de la tierra 2021 a 10 m (v200), DOI: 10.5281/zenodo.7254221 | CC BY 4.0; atribución a ESA WorldCover |
 
 ## Trabajo futuro
