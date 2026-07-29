@@ -1,4 +1,5 @@
-# Pipeline de anomalías térmicas (FIRMS MODIS_SP) en el PN Palo Verde.
+# Pipeline de anomalías térmicas (FIRMS MODIS_SP) y área quemada (MCD64A1)
+# en el PN Palo Verde.
 #
 # Ejecución:      targets::tar_make()
 # Grafo:          targets::tar_visnetwork()
@@ -77,6 +78,21 @@ list(
   tar_target(bosque, sf::st_read(archivo_bosque, quiet = TRUE)),
   tar_target(humedales_detecciones, cruzar_con_humedales(firms_parque, humedales)),
 
+  # --- Área quemada (MCD64A1 v6.1, LP DAAC vía Earthdata) ------------------
+  # FIRMS no entrega BA_MODIS como datos (su API de área responde vacío);
+  # se usa el producto original. Ver cabecera de R/descarga_mcd64a1.R.
+  # La lista de granulos se refresca en cada corrida (cue always, como
+  # rango_disponible); la clave de rama es el mes (aniomes), estable ante
+  # meses nuevos y sensible a granulos reprocesados.
+  tar_target(granulos_ba, cmr_granulos_mcd64a1(fecha_inicio, fecha_fin),
+             cue = tar_cue(mode = "always"), iteration = "group"),
+  tar_target(hdf_ba, descargar_granulo_mcd64a1(granulos_ba),
+             pattern = map(granulos_ba), format = "file"),
+  tar_target(area_quemada_parque, extraer_quemas(hdf_ba, parque)),
+  tar_target(area_quemada_mensual,
+             agregar_mensual_quemas(area_quemada_parque,
+                                    rango_meses = range(firms_mensual$aniomes))),
+
   # --- Contexto paisajístico: ¿borde del bosque o terreno abierto? ---------
   tar_target(paisaje_parque,
              composicion_paisaje(parque, archivos_worldcover, bbox_descarga)),
@@ -101,7 +117,8 @@ list(
              mapa_leaflet_temporal(firms_parque, parque, cobertura,
                                    archivos_worldcover, bbox_descarga,
                                    humedales, bosque,
-                                   "outputs/maps/mapa_temporal.html"),
+                                   "outputs/maps/mapa_temporal.html",
+                                   quemas = area_quemada_parque),
              format = "file"),
 
   # --- Salidas: gráficos y tablas ------------------------------------------
@@ -116,6 +133,18 @@ list(
              format = "file"),
   tar_target(fig_climatologia_html,
              grafico_climatologia_html(firms_mensual, "outputs/figs/climatologia_mensual.html"),
+             format = "file"),
+  tar_target(fig_area_quemada,
+             grafico_area_quemada(area_quemada_mensual,
+                                  "outputs/figs/area_quemada_mensual.png"),
+             format = "file"),
+  tar_target(fig_comparacion,
+             grafico_comparacion(firms_mensual, area_quemada_mensual,
+                                 "outputs/figs/detecciones_vs_area_quemada.png"),
+             format = "file"),
+  tar_target(tabla_area_quemada,
+             tabla_area_quemada_csv(area_quemada_parque,
+                                    "outputs/tables/area_quemada_anual.csv"),
              format = "file"),
   tar_target(fig_cobertura,
              grafico_cobertura(cobertura, humedales_detecciones,

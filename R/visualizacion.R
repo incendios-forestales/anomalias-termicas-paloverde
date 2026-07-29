@@ -81,7 +81,8 @@ animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
 # seleccionado (los índices del deslizador corresponden al orden de los puntos).
 # `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
 crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                bbox, humedales = NULL, bosque = NULL) {
+                                bbox, humedales = NULL, bosque = NULL,
+                                quemas = NULL) {
   # Clase de cobertura dominante por detección (id_deteccion es el número de
   # fila de `puntos` en el orden en que extraer_cobertura() los recibió, por
   # lo que el join debe hacerse ANTES de reordenar por fecha).
@@ -109,6 +110,8 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_HUMEDALES <- "Humedales (registro nacional)"
   GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
   GRUPO_PARQUE    <- "Límite del PN Palo Verde"
+  GRUPO_QUEMAS    <- "Área quemada (MCD64A1)"
+  hay_quemas <- !is.null(quemas) && nrow(quemas) > 0
   # Las detecciones las dibuja el plugin del deslizador marcador por marcador,
   # fuera de todo grupo de leaflet: este grupo es solo el ancla del conmutador
   # en el control de capas; el mostrado/ocultado real se hace en onRender.
@@ -151,7 +154,28 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
       fillColor = "#006400", fillOpacity = 0.35,
       color = "#004d00", weight = 0.5,
       popup = ~paste0("<strong>Cobertura forestal:</strong> ", Clase)
-    ) |>
+    )
+
+  # Píxeles de área quemada (MCD64A1), conmutables y ocultos al inicio. Se
+  # agregan antes del límite del parque y de las detecciones para quedar
+  # debajo de ambos. Los píxeles son rectángulos de 4 vértices: basta
+  # transformarlos a WGS84, sin simplificar_para_web(). La capa no participa
+  # del deslizador temporal (el plugin solo maneja los marcadores de puntos).
+  if (hay_quemas) {
+    m <- m |>
+      leaflet::addPolygons(
+        data = sf::st_transform(quemas, CRS_WGS84),
+        group = GRUPO_QUEMAS,
+        fillColor = COLOR_AREA_QUEMADA, fillOpacity = 0.45,
+        color = COLOR_AREA_QUEMADA, weight = 1,
+        popup = ~paste0(
+          "<strong>Fecha de quema:</strong> ", fecha,
+          "<br><strong>Área del píxel (ha):</strong> ", round(area_ha, 1)
+        )
+      )
+  }
+
+  m <- m |>
     leaflet::addPolygons(
       data = parque_wgs84, fill = FALSE, color = "#2b5876", weight = 2,
       label = "Parque Nacional Palo Verde", group = GRUPO_PARQUE
@@ -179,11 +203,14 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
-      overlayGroups = c(GRUPO_DETECCIONES, GRUPO_PARQUE, GRUPO_COBERTURA,
+      overlayGroups = c(GRUPO_DETECCIONES,
+                        if (hay_quemas) GRUPO_QUEMAS,
+                        GRUPO_PARQUE, GRUPO_COBERTURA,
                         GRUPO_HUMEDALES, GRUPO_BOSQUE),
       position = "topright"
     ) |>
-    leaflet::hideGroup(c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
+    leaflet::hideGroup(c(if (hay_quemas) GRUPO_QUEMAS,
+                         GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
     # Botón de pantalla completa con la API Fullscreen del navegador y el
     # plugin EasyButton (incluido en el paquete leaflet base): evita agregar
     # leaflet.extras solo para este control. Safari usa el prefijo webkit.
@@ -271,9 +298,9 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
 
 # Guarda el mapa temporal como HTML autocontenido (target con format = "file").
 mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                  bbox, humedales, bosque, dest) {
+                                  bbox, humedales, bosque, dest, quemas = NULL) {
   m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox,
-                           humedales, bosque)
+                           humedales, bosque, quemas)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(m, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)

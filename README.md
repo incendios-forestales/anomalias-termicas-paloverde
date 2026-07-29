@@ -2,6 +2,7 @@
 
 Pipeline reproducible en R que descarga las anomalías térmicas (detecciones de
 fuego activo) del producto **MODIS_SP** de [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/)
+y el **área quemada** mensual del producto **MCD64A1** (NASA LP DAAC)
 para el **Parque Nacional Palo Verde** (Costa Rica), caracteriza la **cobertura
 de la tierra** en la que ocurren y genera un **mapa animado a través del
 tiempo**, un mapa interactivo con deslizador temporal, gráficos estadísticos
@@ -15,6 +16,10 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
 
 1. **Obtención de datos**
    - Detecciones: API de área de FIRMS, descargada en fragmentos de 5 días.
+   - Área quemada: granulos mensuales de MCD64A1 v6.1 (500 m) desde LP DAAC,
+     descubiertos vía el API CMR de Earthdata. FIRMS lista este producto como
+     `BA_MODIS` pero su API no lo entrega como datos (responde vacío), por lo
+     que se usa el producto original.
    - Polígono del parque y capas nacionales (humedales, cobertura forestal):
      WFS del SINAC.
    - Cobertura de la tierra: teselas de ESA WorldCover 2021 (10 m) desde S3.
@@ -90,13 +95,16 @@ termina en tiempo razonable. Implementación en
 
 - Una clave (MAP_KEY) gratuita del API de FIRMS:
   <https://firms.modaps.eosdis.nasa.gov/api/map_key/>
+- Un token de Earthdata Login (cuenta gratuita) para descargar MCD64A1:
+  <https://urs.earthdata.nasa.gov/> → *Generate Token*. Los tokens expiran a
+  los ~60 días; si la descarga devuelve HTTP 401, hay que regenerarlo.
 - Docker (recomendado) o R ≥ 4.5 con renv (alternativa, p. ej. en Windows).
 
 ## Uso con Docker (recomendado)
 
 ```bash
 cp .env.example .env            # defina RSTUDIO_PASSWORD
-cp .Renviron.example .Renviron  # ingrese su FIRMS_MAP_KEY
+cp .Renviron.example .Renviron  # ingrese FIRMS_MAP_KEY y EARTHDATA_TOKEN
 docker compose up -d --build
 ```
 
@@ -119,8 +127,8 @@ docker compose run --rm rstudio Rscript -e "renv::restore(); targets::tar_make()
 1. Instale [R ≥ 4.5](https://cran.r-project.org/),
    [RTools](https://cran.r-project.org/bin/windows/Rtools/) (Windows) y
    [Quarto](https://quarto.org/).
-2. Clone el repositorio, copie `.Renviron.example` a `.Renviron` e ingrese su
-   clave.
+2. Clone el repositorio, copie `.Renviron.example` a `.Renviron` e ingrese sus
+   credenciales (`FIRMS_MAP_KEY` y `EARTHDATA_TOKEN`).
 3. En R, dentro del proyecto:
 
 ```r
@@ -161,16 +169,21 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 | Fuente | Datos | Licencia/atribución |
 |---|---|---|
 | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Anomalías térmicas MODIS Collection 6.1 (MODIS_SP), DOI: 10.5067/FIRMS/MODIS/MCD14ML | Acceso abierto; se agradece atribución a NASA FIRMS |
+| [NASA LP DAAC](https://lpdaac.usgs.gov/) | Área quemada mensual MCD64A1 v6.1 (500 m), DOI: 10.5067/MODIS/MCD64A1.061 | Acceso abierto con Earthdata Login; se agradece atribución a NASA LP DAAC |
 | [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde, capa oficial 1:5000 publicada en 2019 (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales, actualización 2016–2018 (`PNE:registro_nacional_humedales`), y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura de la tierra 2021 a 10 m (v200), DOI: 10.5281/zenodo.7254221 | CC BY 4.0; atribución a ESA WorldCover |
 
 ## Trabajo futuro
 
-- Incorporar otras fuentes de FIRMS: MODIS_NRT, VIIRS (SNPP/NOAA-20/NOAA-21) y
-  área quemada (BA_MODIS, BA_VIIRS). La capa de descarga ya está parametrizada
-  por `data_id` (ver `FUENTES_FIRMS` en `R/constantes.R`). Cobra urgencia
-  porque las misiones Terra y Aqua terminan en 2027 y VIIRS es su continuidad:
-  las detecciones de distintos sensores **no deben sumarse** entre sí.
+- Incorporar otras fuentes de FIRMS: MODIS_NRT y VIIRS (SNPP/NOAA-20/NOAA-21).
+  La capa de descarga ya está parametrizada por `data_id` (ver `FUENTES_FIRMS`
+  en `R/constantes.R`). Cobra urgencia porque las misiones Terra y Aqua
+  terminan en 2027 y VIIRS es su continuidad: las detecciones de distintos
+  sensores **no deben sumarse** entre sí. (El área quemada `BA_MODIS` se
+  descartó como fuente FIRMS: su API la acepta pero responde vacío; ya se
+  integra desde el producto original MCD64A1.)
+- Aprovechar las bandas `Burn Date Uncertainty` y `QA` de MCD64A1, e integrar
+  el producto VIIRS de área quemada (VNP64A1) como continuidad post-2027.
 - Desagregar la clase «Bosque» de WorldCover en los tipos de la Cobertura
   Forestal del SINAC (deciduo, maduro, secundario), que aportan vocabulario
   ecológico local — el bosque deciduo es el bosque seco característico del
