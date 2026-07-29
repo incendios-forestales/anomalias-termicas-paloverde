@@ -55,10 +55,13 @@ radiativa del fuego (FRP).
 
 Use el deslizador temporal para explorar las detecciones a través del tiempo;
 cada punto muestra sus atributos al pulsarlo, incluida la cobertura de la
-tierra dominante en su footprint. Desde el control de capas pueden activarse
-la cobertura ([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas
-nacionales del SINAC: el Registro Nacional de Humedales y la cobertura
-forestal 2023.
+tierra dominante en su footprint. El botón ⛶ de la esquina superior izquierda
+abre el mapa en pantalla completa.
+
+Desde el control de capas puede apagarse la capa de detecciones —útil para
+examinar el fondo— y activarse la cobertura
+([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas nacionales del
+SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
 
 ```{r}
 #| label: mapa-interactivo
