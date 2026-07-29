@@ -159,13 +159,15 @@ para responder si las detecciones ocurren en humedal, pero no para
 determinar qué tipo de vegetación se quemó; para eso siguen siendo
 preferibles los productos con detalle espacial fino.
 
-## ¿Borde del bosque o terreno abierto?
+## ¿Las detecciones bordean el bosque o lo rodean?
 
 En el mapa interactivo las detecciones parecen dibujar el contorno del bloque
-forestal, lo que sugiere que el fuego se concentraría en el borde del bosque.
-Conviene comprobarlo: en un parque cuyo bosque forma un bloque compacto,
-cualquier concentración en terreno abierto traza su silueta sin que exista
-preferencia alguna por el borde.
+forestal. Conviene distinguir dos situaciones que se ven igual sobre el mapa:
+que el fuego busque la línea de contacto con el bosque —que lo *bordee*— o que
+simplemente ocurra en las áreas abiertas que lo circundan —que lo *rodee*—. En
+un parque cuyo bosque forma un bloque compacto, cualquier concentración en
+terreno abierto traza su silueta sin que exista preferencia alguna por el
+borde.
 
 ```{r}
 #| label: contexto-paisaje
@@ -216,12 +218,14 @@ la mitad (**`r pct_situacion(3, "pct_detecciones")` %** contra
 es **`r round(borde$mediana_detecciones, 2)`** en las detecciones y
 **`r round(borde$mediana_aleatorios, 2)`** en los puntos aleatorios.
 
-La conclusión es que **las detecciones no bordean el bosque: ocurren en las
-áreas abiertas**, y como el bosque es un bloque continuo, lo abierto es
-precisamente lo que lo rodea. A esa ilusión contribuye además el tamaño del
-píxel MODIS: el punto que se dibuja es el centro de un footprint cuya mediana
-supera 1 km², de modo que buena parte de las detecciones clasificadas como
-bosque puede corresponder a fuegos en la vegetación herbácea contigua.
+La conclusión es que **las detecciones no bordean el bosque: lo rodean**.
+Ocurren en las áreas abiertas y, como el bosque es un bloque continuo, lo
+abierto es justamente lo que lo circunda. La distinción no es de matiz:
+bordearlo supondría que el fuego busca la línea de contacto, y eso es lo que
+los datos descartan. A la ilusión contribuye además el tamaño del píxel MODIS:
+el punto que se dibuja es el centro de un footprint cuya mediana supera 1 km²,
+de modo que buena parte de las detecciones clasificadas como bosque puede
+corresponder a fuegos en la vegetación herbácea contigua.
 
 El patrón es coherente con quemas en la marisma y el pastizal estacionalmente
 secos, que se detienen al llegar al bosque, más que con incendios de dosel: el
