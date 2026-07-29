@@ -108,6 +108,10 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_COBERTURA <- "Cobertura (WorldCover 2021)"
   GRUPO_HUMEDALES <- "Humedales (registro nacional)"
   GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
+  # Las detecciones las dibuja el plugin del deslizador marcador por marcador,
+  # fuera de todo grupo de leaflet: este grupo es solo el ancla del conmutador
+  # en el control de capas; el mostrado/ocultado real se hace en onRender.
+  GRUPO_DETECCIONES <- "Detecciones (FIRMS)"
 
   m <- leaflet::leaflet() |>
     leaflet::addProviderTiles("CartoDB.Positron", group = "CartoDB") |>
@@ -174,7 +178,8 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     ) |>
     leaflet::addLayersControl(
       baseGroups = c("CartoDB", "Imágenes satelitales"),
-      overlayGroups = c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE),
+      overlayGroups = c(GRUPO_DETECCIONES, GRUPO_COBERTURA, GRUPO_HUMEDALES,
+                        GRUPO_BOSQUE),
       position = "topright"
     ) |>
     leaflet::hideGroup(c(GRUPO_COBERTURA, GRUPO_HUMEDALES, GRUPO_BOSQUE)) |>
@@ -196,6 +201,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
     )) |>
     htmlwidgets::onRender(
       "function(el, x, data) {
+        var mapa = this;
         var fechas = data.fechas;
         // El plugin fija el máximo del deslizador en la cantidad de fechas
         // ÚNICAS, pero usa los valores como índices de TODOS los puntos: con
@@ -209,10 +215,40 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
             .css({padding: '2px 6px', 'font-size': '12px', color: '#333'})
             .html(a === b ? a : a + ' \\u2013 ' + b);
         };
-        // setTimeout(0): correr DESPUÉS del mouseup del plugin, que borra el rótulo.
+        // Conmutador de detecciones: el grupo del control de capas es un
+        // ancla vacía (ver GRUPO_DETECCIONES); aquí se quitan o reponen los
+        // marcadores del plugin, respetando el rango vigente del deslizador.
+        var deteccionesActivas = true;
+        var quitarDetecciones = function() {
+          mapa.sliderCntr.options.markers.forEach(function(m) {
+            mapa.removeLayer(m);
+          });
+        };
+        var reponerDetecciones = function() {
+          var vals = $('#leaflet-slider').slider('values');
+          var ms = mapa.sliderCntr.options.markers;
+          for (var i = vals[0]; i <= vals[1]; i++) {
+            if (ms[i]) mapa.addLayer(ms[i]);
+          }
+        };
+        mapa.on('overlayremove', function(e) {
+          if (e.name !== data.grupoDetecciones) return;
+          deteccionesActivas = false;
+          quitarDetecciones();
+        });
+        mapa.on('overlayadd', function(e) {
+          if (e.name !== data.grupoDetecciones) return;
+          deteccionesActivas = true;
+          reponerDetecciones();
+        });
+        // setTimeout(0): correr DESPUÉS del mouseup del plugin, que borra el
+        // rótulo y (si la capa está desactivada) vuelve a pintar marcadores.
         var repintar = function() {
           var vals = $('#leaflet-slider').slider('values');
-          setTimeout(function() { pintar(vals); }, 0);
+          setTimeout(function() {
+            pintar(vals);
+            if (!deteccionesActivas) quitarDetecciones();
+          }, 0);
         };
         pintar([0, fechas.length - 1]);
         $(document).on('mouseup', repintar);
@@ -222,12 +258,12 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         $(el).find('.leaflet-control-layers').css('margin-top', '40px');
         // Al entrar o salir de pantalla completa el contenedor cambia de
         // tamaño sin disparar 'resize' de window; recalcular el mapa.
-        var mapa = this;
         ['fullscreenchange', 'webkitfullscreenchange'].forEach(function(ev) {
           el.addEventListener(ev, function() { mapa.invalidateSize(); });
         });
       }",
-      data = list(fechas = puntos_wgs84$time)
+      data = list(fechas = puntos_wgs84$time,
+                  grupoDetecciones = GRUPO_DETECCIONES)
     )
   m
 }
