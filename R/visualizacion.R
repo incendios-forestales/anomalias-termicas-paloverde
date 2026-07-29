@@ -108,7 +108,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_COBERTURA <- "Cobertura (WorldCover 2021)"
   GRUPO_HUMEDALES <- "Humedales (registro nacional)"
   GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
-  GRUPO_PARQUE    <- "Límite del parque"
+  GRUPO_PARQUE    <- "Límite del PN Palo Verde"
   # Las detecciones las dibuja el plugin del deslizador marcador por marcador,
   # fuera de todo grupo de leaflet: este grupo es solo el ancla del conmutador
   # en el control de capas; el mostrado/ocultado real se hace en onRender.
