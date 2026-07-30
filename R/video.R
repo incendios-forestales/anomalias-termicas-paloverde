@@ -77,15 +77,24 @@ PALETA_COBERTURA_VIDEO <- c(
 )
 
 # Etiquetas geográficas (WGS84); se proyectan a CRTM05 en base_video().
-# La posición de la laguna es el st_point_on_surface() del polígono
-# "Humedal Palo Verde 1" del Registro Nacional de Humedales (SINAC), para
-# que la etiqueta caiga dentro del cuerpo principal de la laguna y no al
-# norte de ella. Las demás están curadas a ojo sobre el cuadro de prueba.
+# Posiciones con respaldo en datos: la laguna es el st_point_on_surface()
+# del polígono "Humedal Palo Verde 1" del Registro Nacional de Humedales
+# (SINAC); los dos refugios, el st_point_on_surface() de su polígono oficial
+# de áreas silvestres protegidas recortado al encuadre del video. Los ríos y
+# la estación biológica (OET) están curados a ojo sobre el cuadro de prueba.
+# `hjust` ancla el texto (0,5 = centrado; 0 = a la derecha del punto) y
+# `punto` dibuja además un marcador (para hitos puntuales como la estación).
 ETIQUETAS_VIDEO <- data.frame(
-  nombre = c("Laguna Palo Verde", "Río Tempisque", "Lomas de Barbudal"),
-  lon    = c(-85.3424, -85.400, -85.365),
-  lat    = c( 10.3343,  10.305,  10.445),
-  angulo = c(0, -55, 0)
+  nombre = c("Laguna Palo Verde", "Río Tempisque", "Río Bebedero",
+             "Lomas de Barbudal", "RNVS Mata Redonda", "RNVS Cipancí",
+             "Estación Biológica Palo Verde"),
+  lon    = c(-85.3424, -85.400, -85.198, -85.365, -85.4205, -85.4303, -85.3365),
+  lat    = c( 10.3343,  10.305,  10.315,  10.445,  10.3207,  10.3331,  10.3450),
+  angulo = c(0, -55, -75, 0, 0, 0, 0),
+  # Los refugios se anclan a la derecha de su punto (hjust = 0): sus puntos
+  # caen junto al borde izquierdo del lienzo y centrados quedarían recortados.
+  hjust  = c(0.5, 0.5, 0.5, 0.5, 0, 0, 0),
+  punto  = c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE)
 )
 
 # --- Descarga y decodificación del DEM -------------------------------------
@@ -333,8 +342,14 @@ base_video <- function(relieve, parque) {
                        ggplot2::aes(x = x, y = y, label = texto, angle = angulo),
                        family = FUENTE_VIDEO, size = 2.4,
                        color = COLOR_TEXTO_SUAVE) +
+    ggplot2::geom_point(data = pos_etiquetas[pos_etiquetas$punto, ],
+                        ggplot2::aes(x = X, y = Y),
+                        color = COLOR_TEXTO_SUAVE, size = 0.9) +
+    # El texto de los hitos con marcador va desplazado a la derecha del punto.
     ggplot2::geom_text(data = pos_etiquetas,
-                       ggplot2::aes(x = X, y = Y, label = nombre, angle = angulo),
+                       ggplot2::aes(x = X + ifelse(hjust == 0, lay$px(10), 0),
+                                    y = Y, label = nombre, angle = angulo,
+                                    hjust = hjust),
                        family = FUENTE_VIDEO, fontface = "italic", size = 2.9,
                        color = COLOR_TEXTO_SUAVE) +
     # --- Encabezado (banda superior, coordenadas de datos) ---
