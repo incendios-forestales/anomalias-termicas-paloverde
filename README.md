@@ -116,6 +116,10 @@ inspirado en los videos de [Milos Popovic](https://milospopovic.net/).
   codifican la elevación en los canales RGB del PNG:
   `elevación (m) = R·256 + G + B/256 − 32768`. Se cachean en `data/raw/dem/`
   y el hillshade se calcula con terra.
+- **Fondo por cobertura**: dentro del parque el matiz del fondo viene de la
+  clase de WorldCover (paleta oscura propia, no la oficial: sobre fondo
+  oscuro competiría con las detecciones y quemas) y la luminancia del
+  hillshade; fuera del parque, una rampa neutra atenuada.
 
 Implementación en [`R/video.R`](R/video.R).
 

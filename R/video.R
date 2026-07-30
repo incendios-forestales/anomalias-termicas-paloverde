@@ -56,6 +56,26 @@ COLOR_QUEMA_VIDEO  <- "#9d7bd8"  # púrpura claro (pariente de COLOR_AREA_QUEMAD
 # y una estela que se desvanece en los cinco meses siguientes.
 ALFAS_ESTELA <- c(1, 0.55, 0.35, 0.22, 0.14, 0.08)
 
+# Paleta oscura por clase WorldCover para el fondo del video (mismos códigos
+# de píxel que CLASES_WORLDCOVER). No es la paleta oficial: sobre fondo
+# oscuro los colores oficiales competirían con el naranja de las detecciones
+# y el púrpura de las quemas, así que cada clase aporta solo un matiz tenue
+# (verde = bosque, verde azulado = humedal/manglar, caqui = pastizal,
+# azul = agua) y la luminancia la pone el hillshade.
+PALETA_COBERTURA_VIDEO <- c(
+  `10`  = "#26452e",  # Bosque
+  `20`  = "#374430",  # Matorral
+  `30`  = "#4a4832",  # Pastizal
+  `40`  = "#453d2b",  # Cultivos
+  `50`  = "#493a3c",  # Zonas construidas
+  `60`  = "#463f35",  # Suelo desnudo
+  `70`  = "#3c4348",  # Nieve y hielo (no ocurre)
+  `80`  = "#183451",  # Cuerpos de agua
+  `90`  = "#1c454c",  # Humedal herbáceo
+  `95`  = "#1a5348",  # Manglar
+  `100` = "#3f4436"   # Musgos y líquenes (no ocurre)
+)
+
 # Etiquetas geográficas (WGS84); se proyectan a CRTM05 en base_video().
 ETIQUETAS_VIDEO <- data.frame(
   nombre = c("Laguna Palo Verde", "Río Tempisque", "Lomas de Barbudal"),
@@ -123,12 +143,15 @@ layout_video <- function() {
 
 # --- Fondo de relieve -------------------------------------------------------
 
-# Compone el fondo del video: hillshade del DEM Terrarium coloreado con una
-# rampa azul oscuro dentro del parque y una rampa atenuada más clara fuera
-# (emula el "fuera de la región de interés" del estilo de referencia).
-# Retorna una imagen RGBA aplanada + su extensión, lista para
-# annotation_raster (objeto plano, serializable como target rds).
-fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84) {
+# Compone el fondo del video: dentro del parque, el matiz viene de la clase
+# de cobertura (WorldCover, PALETA_COBERTURA_VIDEO) y la luminancia del
+# hillshade del DEM Terrarium; fuera, una rampa neutra atenuada (emula el
+# "fuera de la región de interés" del estilo de referencia y deja que la
+# cobertura del parque destaque). Retorna una imagen RGBA aplanada + su
+# extensión, lista para annotation_raster (objeto plano, serializable como
+# target rds).
+fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
+                                archivos_worldcover) {
   indices <- regmatches(basename(archivos_dem),
                         regexec("z(\\d+)_x(\\d+)_y(\\d+)\\.png", basename(archivos_dem)))
   teselas <- lapply(seq_along(archivos_dem), function(i) {
@@ -152,15 +175,35 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84) {
 
   celdas <- terra::as.matrix(sombra, wide = TRUE)
   rango <- range(celdas, na.rm = TRUE)
-  indice <- pmin(256L, 1L + floor((celdas - rango[1]) / diff(rango) * 256))
+  norma <- (celdas - rango[1]) / diff(rango)
+  indice <- pmin(256L, 1L + floor(norma * 256))
 
   mascara <- terra::rasterize(terra::vect(a_crtm05(parque)), sombra)
   dentro <- !is.na(terra::as.matrix(mascara, wide = TRUE))
 
-  rampa_dentro <- grDevices::colorRampPalette(c("#0d1520", "#3d4a5c"))(256)
-  rampa_fuera  <- grDevices::colorRampPalette(c("#1a2430", "#2e3947"))(256)
-  colores <- ifelse(dentro, rampa_dentro[indice], rampa_fuera[indice])
-  colores[is.na(celdas)] <- COLOR_FONDO_VIDEO
+  # Cobertura alineada a la rejilla de la sombra (vecino más cercano en ambos
+  # pasos: los códigos de clase no se interpolan).
+  cobertura <- recortar_worldcover(archivos_worldcover, bbox_wgs84) |>
+    terra::aggregate(fact = 2, fun = "modal", na.rm = TRUE) |>
+    terra::project(CRS_CRTM05, method = "near") |>
+    terra::resample(sombra, method = "near")
+  clases <- terra::as.matrix(cobertura, wide = TRUE)
+
+  # Dentro del parque: color base por clase, luminancia por la sombra
+  # (0,6-1,4x, recortado al máximo del canal). Todos los vectores se aplanan
+  # en el mismo orden (column-major), por lo que las posiciones coinciden.
+  base_hex <- PALETA_COBERTURA_VIDEO[as.character(clases)]
+  base_hex[is.na(base_hex)] <- COLOR_FONDO_VIDEO
+  rgb_base <- grDevices::col2rgb(base_hex) / 255
+  factor_luz <- 0.6 + 0.8 * as.vector(norma)
+  factor_luz[is.na(factor_luz)] <- 1
+  rgb_mod <- pmin(rgb_base * rep(factor_luz, each = 3), 1)
+  hex_dentro <- grDevices::rgb(rgb_mod[1, ], rgb_mod[2, ], rgb_mod[3, ])
+
+  rampa_fuera <- grDevices::colorRampPalette(c("#1a2430", "#2e3947"))(256)
+  colores <- ifelse(as.vector(dentro), hex_dentro,
+                    rampa_fuera[as.vector(indice)])
+  colores[is.na(as.vector(celdas))] <- COLOR_FONDO_VIDEO
 
   extension <- terra::ext(sombra)
   list(
@@ -169,6 +212,7 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84) {
     ymin = extension$ymin, ymax = extension$ymax
   )
 }
+
 
 # --- Datos por cuadro -------------------------------------------------------
 
@@ -323,6 +367,30 @@ base_video <- function(relieve, parque) {
                       label = "Píxel de área quemada (MCD64A1)",
                       family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
+    # Mini-leyenda de las coberturas principales del fondo (los rótulos usan
+    # los colores base de la paleta; en el mapa su luminancia varía con el
+    # relieve). "Pastizal (marisma)" refleja el hallazgo del proyecto: lo que
+    # WorldCover llama pastizal es en su mayoría el humedal estacional.
+    ggplot2::annotate("tile", x = x0 + lay$px(295),
+                      y = y_desde_abajo(c(106, 82)),
+                      width = lay$px(11), height = lay$px(11),
+                      fill = unname(PALETA_COBERTURA_VIDEO[c("10", "30")]),
+                      color = NA) +
+    ggplot2::annotate("text", x = x0 + lay$px(311),
+                      y = y_desde_abajo(c(106, 82)),
+                      label = c("Bosque", "Pastizal (marisma)"),
+                      family = FUENTE_VIDEO, size = 2.7,
+                      hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
+    ggplot2::annotate("tile", x = x0 + lay$px(475),
+                      y = y_desde_abajo(c(106, 82)),
+                      width = lay$px(11), height = lay$px(11),
+                      fill = unname(PALETA_COBERTURA_VIDEO[c("95", "80")]),
+                      color = NA) +
+    ggplot2::annotate("text", x = x0 + lay$px(491),
+                      y = y_desde_abajo(c(106, 82)),
+                      label = c("Manglar", "Agua"),
+                      family = FUENTE_VIDEO, size = 2.7,
+                      hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("segment", x = x1 - lay$px(180) - 5000, xend = x1 - lay$px(180),
                       y = y_desde_abajo(82), yend = y_desde_abajo(82),
                       linewidth = 1.2, color = COLOR_TEXTO_SUAVE) +
@@ -336,9 +404,12 @@ base_video <- function(relieve, parque) {
     ggplot2::annotate("text", x = x1 - lay$px(40), y = lay$y_mapa - lay$px(72),
                       label = "N", family = FUENTE_VIDEO, size = 3,
                       hjust = 0.5, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("text", x = x0, y = y_desde_abajo(20),
-                      label = paste("Datos: NASA FIRMS (MODIS_SP) · NASA LP DAAC (MCD64A1) · SINAC",
-                                    "· Relieve: Terrain Tiles (Mapzen/AWS) · Estilo: Milos Popovic"),
+    ggplot2::annotate("text", x = x0, y = y_desde_abajo(34),
+                      label = "Datos: NASA FIRMS (MODIS_SP) · NASA LP DAAC (MCD64A1) · SINAC",
+                      family = FUENTE_VIDEO, size = 2.3,
+                      hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
+    ggplot2::annotate("text", x = x0, y = y_desde_abajo(18),
+                      label = "Fondo: ESA WorldCover 2021 · Terrain Tiles (Mapzen/AWS) · Estilo: Milos Popovic",
                       family = FUENTE_VIDEO, size = 2.3,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::theme_void() +
