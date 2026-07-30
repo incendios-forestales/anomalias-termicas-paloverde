@@ -47,7 +47,8 @@ crear_tabla_resumen <- function(puntos, quemas = NULL) {
     },
     options = list(pageLength = 30, dom = "t"),
     rownames = FALSE
-  )
+  ) |>
+    formato_dt_es(c("frp_promedio", "frp_maximo"), decimales = 1)
 }
 
 # Contraste WorldCover vs. Registro Nacional de Humedales, para detecciones y
@@ -64,7 +65,9 @@ crear_tabla_contraste <- function(cobertura, humedales_detecciones,
                     "coincidencia con el Registro Nacional de Humedales (SINAC)"),
     options = list(dom = "t"),
     rownames = FALSE
-  )
+  ) |>
+    formato_dt_es(c("pct_en_humedal", "pct_quemado_en_humedal"), decimales = 1) |>
+    formato_dt_es("fraccion_humedal_promedio", decimales = 3)
 }
 
 # Resumen por año del área quemada: hectáreas totales y mes pico.

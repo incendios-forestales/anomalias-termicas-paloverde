@@ -176,7 +176,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         color = COLOR_AREA_QUEMADA, weight = 1,
         popup = ~paste0(
           "<strong>Fecha de quema:</strong> ", fecha,
-          "<br><strong>Área del píxel (ha):</strong> ", round(area_ha, 1)
+          "<br><strong>Área del píxel (ha):</strong> ", num_es(area_ha)
         )
       )
   }
@@ -193,7 +193,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
       popup = ~paste0(
         "<strong>Fecha:</strong> ", acq_date,
         "<br><strong>Hora (UTC):</strong> ", sprintf("%04d", acq_time),
-        "<br><strong>FRP (MW):</strong> ", frp,
+        "<br><strong>FRP (MW):</strong> ", num_es(frp),
         "<br><strong>Confianza:</strong> ", confidence,
         "<br><strong>Satélite:</strong> ", satellite,
         "<br><strong>Cobertura dominante (2021):</strong> ", clase_cobertura,
@@ -482,7 +482,7 @@ crear_climatologia_interactiva <- function(mensual) {
     dplyr::mutate(
       nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
       etiqueta = paste0("Mes: ", nombre_mes,
-                        "<br>Promedio: ", round(promedio, 1))
+                        "<br>Promedio: ", num_es(promedio))
     )
   p <- ggplot2::ggplot(clima, ggplot2::aes(x = nombre_mes, y = promedio,
                                            text = etiqueta)) +

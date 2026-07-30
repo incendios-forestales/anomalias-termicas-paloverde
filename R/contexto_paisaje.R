@@ -139,8 +139,7 @@ crear_tabla_borde <- function(contexto) {
                pct_area_quemada = "% del área quemada",
                pct_aleatorio = "% esperado por azar")
   DT::datatable(
-    contexto$tabla |>
-      dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 1))),
+    contexto$tabla,
     colnames = unname(nombres[names(contexto$tabla)]),
     caption = paste0(
       "Situación paisajística de las detecciones frente a ",
@@ -149,7 +148,8 @@ crear_tabla_borde <- function(contexto) {
     ),
     options = list(dom = "t"),
     rownames = FALSE
-  )
+  ) |>
+    formato_dt_es(names(contexto$tabla)[-1], decimales = 1)
 }
 
 tabla_borde_csv <- function(contexto, dest) {
