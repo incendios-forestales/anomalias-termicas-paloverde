@@ -122,7 +122,11 @@ complementarias y no sumables), en un estilo inspirado en los videos de
   oscuro competiría con las detecciones y quemas) y la luminancia del
   hillshade; fuera del parque, una rampa neutra atenuada.
 
-Implementación en [`R/video.R`](R/video.R).
+Implementación en [`R/video.R`](R/video.R). El cartel estático
+`outputs/figs/cartel_resumen.png` (target `cartel_resumen`) resume las dos
+series mensuales con el mismo estilo visual, en dos paneles apilados —
+nunca un doble eje: son magnitudes no comparables — con el mes máximo de
+cada serie rotulado.
 
 ## Requisitos
 
