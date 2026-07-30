@@ -112,6 +112,12 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_PARQUE    <- "Límite del PN Palo Verde"
   GRUPO_QUEMAS    <- "Área quemada (MCD64A1)"
   hay_quemas <- !is.null(quemas) && nrow(quemas) > 0
+  # Los píxeles quemados llevan layerId propio para que el deslizador pueda
+  # mostrarlos u ocultarlos uno por uno (ver onRender).
+  if (hay_quemas) {
+    quemas_wgs84 <- sf::st_transform(quemas, CRS_WGS84) |>
+      dplyr::mutate(id_quema = paste0("quema_", dplyr::row_number()))
+  }
   # Las detecciones las dibuja el plugin del deslizador marcador por marcador,
   # fuera de todo grupo de leaflet: este grupo es solo el ancla del conmutador
   # en el control de capas; el mostrado/ocultado real se hace en onRender.
@@ -159,13 +165,13 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   # Píxeles de área quemada (MCD64A1), conmutables y ocultos al inicio. Se
   # agregan antes del límite del parque y de las detecciones para quedar
   # debajo de ambos. Los píxeles son rectángulos de 4 vértices: basta
-  # transformarlos a WGS84, sin simplificar_para_web(). La capa no participa
-  # del deslizador temporal (el plugin solo maneja los marcadores de puntos).
+  # transformarlos a WGS84, sin simplificar_para_web(). El deslizador los
+  # filtra por su fecha de quema (ver onRender).
   if (hay_quemas) {
     m <- m |>
       leaflet::addPolygons(
-        data = sf::st_transform(quemas, CRS_WGS84),
-        group = GRUPO_QUEMAS,
+        data = quemas_wgs84,
+        group = GRUPO_QUEMAS, layerId = ~id_quema,
         fillColor = COLOR_AREA_QUEMADA, fillOpacity = 0.45,
         color = COLOR_AREA_QUEMADA, weight = 1,
         popup = ~paste0(
@@ -259,12 +265,49 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
             if (ms[i]) mapa.addLayer(ms[i]);
           }
         };
+        // Filtro temporal de los píxeles quemados. El plugin del deslizador
+        // solo conoce sus propios marcadores, así que los polígonos se
+        // muestran u ocultan aquí comparando su fecha de quema contra el
+        // rango vigente (las fechas ISO se comparan como texto). Se localizan
+        // por layerId a través del layerManager de leaflet, igual de interno
+        // que el sliderCntr que ya usa el conmutador de detecciones.
+        // El grupo arranca oculto (hideGroup), de ahí quemasActivas = false.
+        var hayQuemas = data.idsQuemas && data.idsQuemas.length > 0;
+        var quemasActivas = false;
+        var filtrarQuemas = function(vals) {
+          if (!hayQuemas) return;
+          // En los extremos el rango es abierto: MCD64A1 se publica con
+          // rezago y sus píxeles más recientes son posteriores a la última
+          // detección, así que con el deslizador completo deben verse todos.
+          var a = vals[0] === 0 ? '0000-01-01' : fechas[vals[0]];
+          var b = vals[1] === fechas.length - 1 ? '9999-12-31' : fechas[vals[1]];
+          data.idsQuemas.forEach(function(id, i) {
+            var capa = mapa.layerManager.getLayer('shape', id);
+            if (!capa) return;
+            var f = data.fechasQuemas[i];
+            if (quemasActivas && f >= a && f <= b) {
+              mapa.addLayer(capa);
+            } else {
+              mapa.removeLayer(capa);
+            }
+          });
+        };
+        var rangoVigente = function() {
+          return $('#leaflet-slider').slider('values');
+        };
         mapa.on('overlayremove', function(e) {
+          if (e.name === data.grupoQuemas) { quemasActivas = false; return; }
           if (e.name !== data.grupoDetecciones) return;
           deteccionesActivas = false;
           quitarDetecciones();
         });
         mapa.on('overlayadd', function(e) {
+          if (e.name === data.grupoQuemas) {
+            // leaflet repone TODOS los polígonos del grupo: volver a filtrar.
+            quemasActivas = true;
+            filtrarQuemas(rangoVigente());
+            return;
+          }
           if (e.name !== data.grupoDetecciones) return;
           deteccionesActivas = true;
           reponerDetecciones();
@@ -272,10 +315,11 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         // setTimeout(0): correr DESPUÉS del mouseup del plugin, que borra el
         // rótulo y (si la capa está desactivada) vuelve a pintar marcadores.
         var repintar = function() {
-          var vals = $('#leaflet-slider').slider('values');
+          var vals = rangoVigente();
           setTimeout(function() {
             pintar(vals);
             if (!deteccionesActivas) quitarDetecciones();
+            filtrarQuemas(vals);
           }, 0);
         };
         pintar([0, fechas.length - 1]);
@@ -290,8 +334,14 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
           el.addEventListener(ev, function() { mapa.invalidateSize(); });
         });
       }",
+      # I(): fuerza arreglos JSON aunque haya un solo píxel quemado
+      # (auto_unbox convertiría un vector de largo 1 en escalar y el
+      # forEach del filtro fallaría).
       data = list(fechas = puntos_wgs84$time,
-                  grupoDetecciones = GRUPO_DETECCIONES)
+                  grupoDetecciones = GRUPO_DETECCIONES,
+                  grupoQuemas = GRUPO_QUEMAS,
+                  idsQuemas = if (hay_quemas) I(quemas_wgs84$id_quema),
+                  fechasQuemas = if (hay_quemas) I(as.character(quemas_wgs84$fecha)))
     )
   m
 }

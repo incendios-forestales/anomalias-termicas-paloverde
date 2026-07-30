@@ -66,8 +66,8 @@ abre el mapa en pantalla completa.
 
 Desde el control de capas pueden apagarse las capas de detecciones y del
 límite del parque —útil para examinar el fondo— y activarse el área quemada
-(píxeles de MCD64A1, con su fecha de quema en el popup; esta capa no responde
-al deslizador temporal), la cobertura
+(píxeles de MCD64A1, con su fecha de quema en el popup), que el deslizador
+filtra igual que las detecciones, la cobertura
 ([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas nacionales del
 SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
 
