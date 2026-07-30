@@ -341,9 +341,6 @@ base_video <- function(relieve, parque) {
                       label = "Anomalías Térmicas en el PN Palo Verde, 2001 - 2026",
                       family = FUENTE_VIDEO, fontface = "bold", size = 6.4,
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
-    ggplot2::annotate("segment", x = x0, xend = x0 + lay$px(210),
-                      y = y_desde_arriba(88), yend = y_desde_arriba(88),
-                      linewidth = 1.6, color = COLOR_FUEGO_HALO) +
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(176),
                       label = esparcir("hectáreas quemadas acumuladas"),
                       family = FUENTE_VIDEO, size = 2.6,
