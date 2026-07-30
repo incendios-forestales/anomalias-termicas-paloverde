@@ -102,8 +102,8 @@ termina en tiempo razonable. Implementación en
 
 ### Video estilo cartel
 
-`outputs/figs/video_incendios.mp4` resume los 25 años en ~33 segundos, un
-cuadro por mes: detecciones de fuego con resplandor y estela de los meses
+`outputs/figs/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
+un cuadro por mes: detecciones de fuego con resplandor y estela de los meses
 recientes, píxeles de área quemada y contadores acumulados de ambas series
 (por separado: son magnitudes complementarias y no sumables), en un estilo
 inspirado en los videos de [Milos Popovic](https://milospopovic.net/).

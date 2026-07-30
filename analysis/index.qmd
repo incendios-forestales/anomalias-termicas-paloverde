@@ -64,7 +64,7 @@ Resumen mensual 2001--2026 en formato de video: detecciones de fuego activo
 (MCD64A1), sobre el relieve del parque. Los contadores acumulan cada serie
 por separado: son magnitudes complementarias y no sumables.
 
-<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_incendios, store = almacen))`"></video>
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias, store = almacen))`"></video>
 
 ## Mapa interactivo
 

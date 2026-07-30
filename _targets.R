@@ -113,11 +113,12 @@ list(
              format = "file"),
   tar_target(relieve_video, fondo_relieve_video(archivos_dem, parque,
                                                 bbox_descarga)),
-  tar_target(video_incendios,
-             generar_video_incendios(firms_parque, area_quemada_parque,
+  tar_target(video_anomalias,
+             generar_video_anomalias(firms_parque, area_quemada_parque,
                                      firms_mensual, area_quemada_mensual,
                                      parque, relieve_video,
-                                     "outputs/figs/video_incendios.mp4"),
+                                     "outputs/figs/video_anomalias_termicas.mp4",
+                                     fps = 5),
              format = "file"),
 
   # --- Salidas: animaciones -------------------------------------------------

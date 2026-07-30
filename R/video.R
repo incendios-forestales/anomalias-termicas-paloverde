@@ -291,8 +291,8 @@ base_video <- function(relieve, parque) {
                        color = COLOR_TEXTO_SUAVE) +
     # --- Encabezado (banda superior, coordenadas de datos) ---
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(95),
-                      label = "INCENDIOS EN PALO VERDE",
-                      family = FUENTE_VIDEO, fontface = "bold", size = 8.2,
+                      label = "ANOMALÍAS TÉRMICAS EN PALO VERDE",
+                      family = FUENTE_VIDEO, fontface = "bold", size = 7.2,
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
     ggplot2::annotate("segment", x = x0, xend = x0 + lay$px(210),
                       y = y_desde_arriba(112), yend = y_desde_arriba(112),
@@ -441,7 +441,7 @@ cuadro_video <- function(base, capas, info_mes, dest_png) {
 # entrada de av (da tiempo de leer las cifras finales).
 # Nota: MCD64A1 se publica con rezago mayor que FIRMS, por lo que el contador
 # de hectáreas puede quedar plano en los meses finales.
-generar_video_incendios <- function(firms_parque, area_quemada_parque,
+generar_video_anomalias <- function(firms_parque, area_quemada_parque,
                                     firms_mensual, area_quemada_mensual,
                                     parque, relieve, dest,
                                     fps = 10, congelar_s = 2.5,
