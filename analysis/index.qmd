@@ -235,18 +235,21 @@ borde.
 #| label: contexto-paisaje
 borde <- tar_read(borde_bosque, store = almacen)
 paisaje <- tar_read(paisaje_parque, store = almacen)
-pct_paisaje <- function(x) {
-  round(paisaje$pct_paisaje[match(x, paisaje$clase)], 1)
-}
+# Los ayudantes devuelven el número ya formateado en español (coma decimal);
+# para operar con los valores hay que leerlos de borde$tabla, no de aquí.
+pct_paisaje <- function(x) num_es(paisaje$pct_paisaje[match(x, paisaje$clase)])
 dominantes <- clase_dominante(cobertura) |>
   dplyr::count(clase) |>
   dplyr::mutate(pct = 100 * n / sum(n))
-pct_dominante <- function(x) round(dominantes$pct[match(x, dominantes$clase)], 1)
+pct_dominante <- function(x) num_es(dominantes$pct[match(x, dominantes$clase)])
 ha_dominante <- clase_dominante(cobertura_quemas) |>
   dplyr::summarise(ha = sum(area_ha), .by = clase) |>
   dplyr::mutate(pct = 100 * ha / sum(ha))
-pct_ha_dominante <- function(x) round(ha_dominante$pct[match(x, ha_dominante$clase)], 1)
-pct_situacion <- function(i, col) round(borde$tabla[[col]][i], 1)
+pct_ha_dominante <- function(x) num_es(ha_dominante$pct[match(x, ha_dominante$clase)])
+pct_situacion <- function(i, col) num_es(borde$tabla[[col]][i])
+veces_menos_bosque <- num_es(
+  borde$tabla$pct_aleatorio[3] / borde$tabla$pct_area_quemada[3], 0
+)
 ```
 
 El primer indicio está en la composición: el parque es
@@ -283,15 +286,15 @@ Si los incendios prefirieran el borde, la fila central estaría
 sobrerrepresentada. No lo está: **`r pct_situacion(2, "pct_detecciones")` %**
 de las detecciones contra **`r pct_situacion(2, "pct_aleatorio")` %** esperado
 por azar, una diferencia no significativa
-(prueba de proporciones, *p* = `r round(borde$p_borde, 2)`). Lo que sí está
+(prueba de proporciones, *p* = `r num_es(borde$p_borde, 2)`). Lo que sí está
 fuertemente desplazado son los extremos: las detecciones ocurren en terreno
 abierto casi al doble de lo esperado
 (**`r pct_situacion(1, "pct_detecciones")` %** contra
 **`r pct_situacion(1, "pct_aleatorio")` %**) y en interior de bosque a menos de
 la mitad (**`r pct_situacion(3, "pct_detecciones")` %** contra
 **`r pct_situacion(3, "pct_aleatorio")` %**). La mediana de bosque circundante
-es **`r round(borde$mediana_detecciones, 2)`** en las detecciones y
-**`r round(borde$mediana_aleatorios, 2)`** en los puntos aleatorios.
+es **`r num_es(borde$mediana_detecciones, 2)`** en las detecciones y
+**`r num_es(borde$mediana_aleatorios, 2)`** en los puntos aleatorios.
 
 ### El área quemada agudiza el patrón
 
@@ -302,10 +305,9 @@ de las detecciones y al `r pct_situacion(1, "pct_aleatorio")` % esperado por
 azar— y en el interior del bosque el fuego prácticamente desaparece:
 **`r pct_situacion(3, "pct_area_quemada")` %** de las hectáreas contra un
 `r pct_situacion(3, "pct_aleatorio")` % esperado, es decir, cerca de
-`r round(pct_situacion(3, "pct_aleatorio") / pct_situacion(3, "pct_area_quemada"))`
-veces menos. La mediana de bosque circundante baja de
-`r round(borde$mediana_detecciones, 2)` en las detecciones a
-**`r round(borde$mediana_quemas, 3)`** en los píxeles quemados.
+`r veces_menos_bosque` veces menos. La mediana de bosque circundante baja de
+`r num_es(borde$mediana_detecciones, 2)` en las detecciones a
+**`r num_es(borde$mediana_quemas, 3)`** en los píxeles quemados.
 
 La diferencia entre ambos instrumentos es en sí misma informativa, y apunta al
 tamaño del píxel. Una detección es el centro de un footprint cuya mediana

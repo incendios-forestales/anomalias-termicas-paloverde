@@ -224,14 +224,14 @@ crear_climatologia_comparada <- function(firms_mensual, quemas_mensual) {
     dplyr::mutate(
       nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
       etiqueta = paste0("Mes: ", nombre_mes,
-                        "<br>Promedio: ", round(promedio, 1), " detecciones")
+                        "<br>Promedio: ", num_es(promedio), " detecciones")
     )
   clima_quemas <- quemas_mensual |>
     dplyr::summarise(promedio = mean(hectareas), .by = mes) |>
     dplyr::mutate(
       nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
       etiqueta = paste0("Mes: ", nombre_mes,
-                        "<br>Promedio: ", round(promedio), " ha")
+                        "<br>Promedio: ", num_es(promedio, 0), " ha")
     )
   p_firms <- ggplot2::ggplot(clima_firms,
                              ggplot2::aes(x = nombre_mes, y = promedio,
