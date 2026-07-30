@@ -334,23 +334,22 @@ base_video <- function(relieve, parque) {
                        family = FUENTE_VIDEO, fontface = "italic", size = 2.9,
                        color = COLOR_TEXTO_SUAVE) +
     # --- Encabezado (banda superior, coordenadas de datos) ---
-    ggplot2::annotate("text", x = x0, y = y_desde_arriba(95),
-                      label = "ANOMALÍAS TÉRMICAS EN PALO VERDE",
-                      family = FUENTE_VIDEO, fontface = "bold", size = 7.2,
+    # Título fijo en una sola línea (el rango vive en el título); debajo va
+    # lo que cambia por cuadro: acumulados grandes y, más abajo, el mes con
+    # sus valores (ver cuadro_video()).
+    ggplot2::annotate("text", x = x0, y = y_desde_arriba(70),
+                      label = "Anomalías Térmicas en el PN Palo Verde, 2001 - 2026",
+                      family = FUENTE_VIDEO, fontface = "bold", size = 6.4,
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
     ggplot2::annotate("segment", x = x0, xend = x0 + lay$px(210),
-                      y = y_desde_arriba(112), yend = y_desde_arriba(112),
+                      y = y_desde_arriba(88), yend = y_desde_arriba(88),
                       linewidth = 1.6, color = COLOR_FUEGO_HALO) +
-    ggplot2::annotate("text", x = x0, y = y_desde_arriba(160),
-                      label = esparcir("2001 - 2026 · Parque Nacional, Costa Rica"),
-                      family = FUENTE_VIDEO, size = 3.1,
-                      hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("text", x = x0, y = y_desde_arriba(250),
-                      label = esparcir("hectáreas quemadas este mes"),
+    ggplot2::annotate("text", x = x0, y = y_desde_arriba(176),
+                      label = esparcir("hectáreas quemadas acumuladas"),
                       family = FUENTE_VIDEO, size = 2.6,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("text", x = x0 + lay$px(560), y = y_desde_arriba(250),
-                      label = esparcir("detecciones MODIS este mes"),
+    ggplot2::annotate("text", x = x0 + lay$px(560), y = y_desde_arriba(176),
+                      label = esparcir("detecciones MODIS acumuladas"),
                       family = FUENTE_VIDEO, size = 2.6,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     # --- Leyenda, escala, norte y créditos (dentro del mapa) ---
@@ -476,40 +475,38 @@ cuadro_video <- function(base, capas, info_mes, dest_png) {
   lay <- layout_video()
   x0 <- lay$xlim[1] + lay$px(40)
   x1 <- lay$xlim[2] - lay$px(40)
-  # Jerarquía de los contadores: el incremento del mes grande (es lo que el
-  # mapa está mostrando en ese cuadro) y el acumulado desde 2001 en una línea
-  # pequeña debajo. En meses sin actividad el cero va atenuado y sin "+",
-  # para que no compita con los meses con datos.
-  contador_mes <- function(x) {
-    if (x > 0) paste0("+", contador_es(x)) else "0"
+  # Jerarquía de los contadores: primero los acumulados desde 2001 en grande
+  # (columnas rotuladas en base_video()) y debajo el renglón del mes: la
+  # fecha y las hectáreas y detecciones de ese mes, con unidades explícitas.
+  # En meses sin actividad los valores del mes van atenuados y sin "+".
+  valor_mes <- function(x, unidad) {
+    if (x > 0) paste0("+", contador_es(x), " ", unidad) else paste0("0 ", unidad)
   }
   color_mes <- function(x, color) if (x > 0) color else COLOR_TEXTO_SUAVE
   p <- suppressMessages(
     Reduce(`+`, capas, init = base) +
-      ggplot2::annotate("text", x = x1, y = lay$ylim[2] - lay$px(95),
+      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(140),
+                        label = contador_es(info_mes$hectareas_acum),
+                        family = FUENTE_VIDEO, fontface = "bold", size = 7.5,
+                        hjust = 0, vjust = 0.5, color = COLOR_QUEMA_VIDEO) +
+      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(140),
+                        label = contador_es(info_mes$detecciones_acum),
+                        family = FUENTE_VIDEO, fontface = "bold", size = 7.5,
+                        hjust = 0, vjust = 0.5, color = COLOR_FUEGO_HALO) +
+      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(240),
                         label = info_mes$etiqueta_fecha,
-                        family = FUENTE_VIDEO, fontface = "bold", size = 6.8,
-                        hjust = 1, vjust = 0, color = COLOR_TEXTO_VIDEO) +
-      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(215),
-                        label = contador_mes(info_mes$hectareas),
-                        family = FUENTE_VIDEO, fontface = "bold", size = 7,
+                        family = FUENTE_VIDEO, fontface = "bold", size = 5.5,
+                        hjust = 0, vjust = 0.5, color = COLOR_TEXTO_VIDEO) +
+      ggplot2::annotate("text", x = x0 + lay$px(260), y = lay$ylim[2] - lay$px(240),
+                        label = valor_mes(info_mes$hectareas, "ha"),
+                        family = FUENTE_VIDEO, fontface = "bold", size = 5.5,
                         hjust = 0, vjust = 0.5,
                         color = color_mes(info_mes$hectareas, COLOR_QUEMA_VIDEO)) +
-      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(278),
-                        label = paste0("Acumulado: ",
-                                       contador_es(info_mes$hectareas_acum), " ha"),
-                        family = FUENTE_VIDEO, size = 2.4,
-                        hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(215),
-                        label = contador_mes(info_mes$detecciones),
-                        family = FUENTE_VIDEO, fontface = "bold", size = 7,
+      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(240),
+                        label = valor_mes(info_mes$detecciones, "detecciones"),
+                        family = FUENTE_VIDEO, fontface = "bold", size = 5.5,
                         hjust = 0, vjust = 0.5,
                         color = color_mes(info_mes$detecciones, COLOR_FUEGO_HALO)) +
-      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(278),
-                        label = paste0("Acumulado: ",
-                                       contador_es(info_mes$detecciones_acum)),
-                        family = FUENTE_VIDEO, size = 2.4,
-                        hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
       ggplot2::coord_sf(crs = sf::st_crs(CRS_CRTM05), datum = NA,
                         xlim = lay$xlim, ylim = lay$ylim,
                         expand = FALSE, clip = "off")
