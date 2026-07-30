@@ -221,7 +221,7 @@ para responder si las detecciones ocurren en humedal, pero no para
 determinar qué tipo de vegetación se quemó; para eso siguen siendo
 preferibles los productos con detalle espacial fino.
 
-## ¿Las detecciones bordean el bosque o lo rodean?
+## ¿El fuego bordea el bosque o lo rodea?
 
 En el mapa interactivo las detecciones parecen dibujar el contorno del bloque
 forestal. Conviene distinguir dos situaciones que se ven igual sobre el mapa:
@@ -242,6 +242,10 @@ dominantes <- clase_dominante(cobertura) |>
   dplyr::count(clase) |>
   dplyr::mutate(pct = 100 * n / sum(n))
 pct_dominante <- function(x) round(dominantes$pct[match(x, dominantes$clase)], 1)
+ha_dominante <- clase_dominante(cobertura_quemas) |>
+  dplyr::summarise(ha = sum(area_ha), .by = clase) |>
+  dplyr::mutate(pct = 100 * ha / sum(ha))
+pct_ha_dominante <- function(x) round(ha_dominante$pct[match(x, ha_dominante$clase)], 1)
 pct_situacion <- function(i, col) round(borde$tabla[[col]][i], 1)
 ```
 
@@ -249,7 +253,10 @@ El primer indicio está en la composición: el parque es
 **`r pct_paisaje("Bosque")` %** bosque y **`r pct_paisaje("Pastizal")` %**
 pastizal según WorldCover, pero solo el **`r pct_dominante("Bosque")` %** de
 las detecciones tiene bosque como clase dominante de su footprint, frente al
-**`r pct_dominante("Pastizal")` %** con pastizal. El fuego está
+**`r pct_dominante("Pastizal")` %** con pastizal. El área quemada apunta en la
+misma dirección y con más fuerza: apenas el **`r pct_ha_dominante("Bosque")` %**
+de las hectáreas quemadas cae en píxeles dominados por bosque, contra el
+**`r pct_ha_dominante("Pastizal")` %** en pastizal. El fuego está
 sobrerrepresentado en la vegetación herbácea —que, como muestra la sección
 anterior, corresponde en su gran mayoría a la marisma del parque— y
 subrepresentado en el bosque.
@@ -266,11 +273,11 @@ y a 0 en terreno abierto; los valores intermedios son justamente los bordes.
 crear_tabla_borde(borde)
 ```
 
-La tabla incluye además, como referencia descriptiva, el reparto del **área
-quemada** (centroides de píxel MCD64A1, ponderados por su superficie): el
-**`r pct_situacion(1, "pct_area_quemada")` %** de las hectáreas quemadas está
-en terreno abierto, un patrón aún más marcado que el de las detecciones. La
-prueba estadística se aplica solo a las detecciones.
+La tabla contrasta tres repartos: el de las detecciones, el del área quemada
+—medida sobre los centroides de los **`r borde$n_pixeles_quemas`** píxeles de
+MCD64A1 y ponderada por su superficie— y el esperado por azar. La prueba
+estadística se aplica solo a las detecciones; la columna del área quemada se
+lee contra la misma referencia aleatoria.
 
 Si los incendios prefirieran el borde, la fila central estaría
 sobrerrepresentada. No lo está: **`r pct_situacion(2, "pct_detecciones")` %**
@@ -286,20 +293,44 @@ la mitad (**`r pct_situacion(3, "pct_detecciones")` %** contra
 es **`r round(borde$mediana_detecciones, 2)`** en las detecciones y
 **`r round(borde$mediana_aleatorios, 2)`** en los puntos aleatorios.
 
-La conclusión es que **las detecciones no bordean el bosque: lo rodean**.
-Ocurren en las áreas abiertas y, como el bosque es un bloque continuo, lo
-abierto es justamente lo que lo circunda. La distinción no es de matiz:
-bordearlo supondría que el fuego busca la línea de contacto, y eso es lo que
-los datos descartan. A la ilusión contribuye además el tamaño del píxel MODIS:
-el punto que se dibuja es el centro de un footprint cuya mediana supera 1 km²,
-de modo que buena parte de las detecciones clasificadas como bosque puede
-corresponder a fuegos en la vegetación herbácea contigua.
+### El área quemada agudiza el patrón
+
+El segundo instrumento no solo confirma el resultado: lo vuelve más nítido.
+El **`r pct_situacion(1, "pct_area_quemada")` %** de las hectáreas quemadas
+está en terreno abierto —frente al `r pct_situacion(1, "pct_detecciones")` %
+de las detecciones y al `r pct_situacion(1, "pct_aleatorio")` % esperado por
+azar— y en el interior del bosque el fuego prácticamente desaparece:
+**`r pct_situacion(3, "pct_area_quemada")` %** de las hectáreas contra un
+`r pct_situacion(3, "pct_aleatorio")` % esperado, es decir, cerca de
+`r round(pct_situacion(3, "pct_aleatorio") / pct_situacion(3, "pct_area_quemada"))`
+veces menos. La mediana de bosque circundante baja de
+`r round(borde$mediana_detecciones, 2)` en las detecciones a
+**`r round(borde$mediana_quemas, 3)`** en los píxeles quemados.
+
+La diferencia entre ambos instrumentos es en sí misma informativa, y apunta al
+tamaño del píxel. Una detección es el centro de un footprint cuya mediana
+supera 1 km²: cuando un fuego arde en la marisma contigua al bosque, ese
+footprint invade el bosque y la detección puede quedar clasificada como
+interior forestal. MCD64A1 no tiene ese desborde —sitúa la cicatriz en un
+píxel de 500 m— y al medir con él, el interior de bosque se reduce a una
+fracción mínima. Buena parte del `r pct_situacion(3, "pct_detecciones")` % de
+detecciones en interior de bosque es, entonces, un artefacto de resolución más
+que fuego de dosel.
+
+La conclusión es que **el fuego no bordea el bosque: lo rodea**. Ocurre en las
+áreas abiertas y, como el bosque es un bloque continuo, lo abierto es
+justamente lo que lo circunda. La distinción no es de matiz: bordearlo
+supondría que el fuego busca la línea de contacto, y eso es lo que los datos
+descartan, ahora con dos productos independientes que coinciden.
 
 El patrón es coherente con quemas en la marisma y el pastizal estacionalmente
 secos, que se detienen al llegar al bosque, más que con incendios de dosel: el
 bosque seco cerrado retiene humedad y carece de un combustible fino continuo.
-Para el manejo del parque esto ubica el riesgo en la interfaz entre la marisma
-y el bosque, aunque el fuego mismo no muestre preferencia por esa interfaz.
+Que el área quemada casi no registre superficie en el interior del bosque
+respalda esa lectura: el fuego no solo se enciende fuera del bosque, tampoco
+avanza dentro de él. Para el manejo del parque esto ubica el riesgo en la
+interfaz entre la marisma y el bosque, aunque el fuego mismo no muestre
+preferencia por esa interfaz.
 
 **Limitación**: el modelo nulo supone que cualquier punto del parque tiene la
 misma probabilidad de arder, lo que ignora factores como la accesibilidad o la

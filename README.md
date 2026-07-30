@@ -84,7 +84,15 @@ No hay efecto de borde: la categoría intermedia (20–80 % de bosque alrededor)
 no está sobrerrepresentada (25,4 % contra 28,2 % esperado por azar, *p* = 0,38).
 Lo que sí está desplazado son los extremos: las detecciones ocurren en terreno
 abierto casi al doble de lo esperado y en interior de bosque a menos de la
-mitad. **Las detecciones no bordean el bosque, lo rodean.**
+mitad. **El fuego no bordea el bosque, lo rodea.**
+
+El área quemada (MCD64A1) agudiza el patrón: el 74,5 % de las hectáreas está
+en terreno abierto y solo el 3,4 % en interior de bosque, contra un 38 %
+esperado por azar. La diferencia entre ambos instrumentos apunta al tamaño del
+píxel — el footprint MODIS de ~1 km invade el bosque cuando el fuego arde en
+la marisma contigua, mientras que el píxel de 500 m de MCD64A1 sitúa mejor la
+cicatriz—, de modo que buena parte de las detecciones en interior de bosque es
+un artefacto de resolución y no fuego de dosel.
 
 La métrica es la fracción de bosque en un vecindario y no la distancia al borde
 más cercano porque un `distance()` sobre el raster de 10 m del parque no
