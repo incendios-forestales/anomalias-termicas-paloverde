@@ -77,10 +77,14 @@ PALETA_COBERTURA_VIDEO <- c(
 )
 
 # Etiquetas geográficas (WGS84); se proyectan a CRTM05 en base_video().
+# La posición de la laguna es el st_point_on_surface() del polígono
+# "Humedal Palo Verde 1" del Registro Nacional de Humedales (SINAC), para
+# que la etiqueta caiga dentro del cuerpo principal de la laguna y no al
+# norte de ella. Las demás están curadas a ojo sobre el cuadro de prueba.
 ETIQUETAS_VIDEO <- data.frame(
   nombre = c("Laguna Palo Verde", "Río Tempisque", "Lomas de Barbudal"),
-  lon    = c(-85.345, -85.400, -85.365),
-  lat    = c( 10.348,  10.305,  10.445),
+  lon    = c(-85.3424, -85.400, -85.365),
+  lat    = c( 10.3343,  10.305,  10.445),
   angulo = c(0, -55, 0)
 )
 
