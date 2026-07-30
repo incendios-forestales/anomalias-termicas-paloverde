@@ -80,17 +80,20 @@ PALETA_COBERTURA_VIDEO <- c(
 # Posiciones con respaldo en datos: la laguna es el st_point_on_surface()
 # del polígono "Humedal Palo Verde 1" del Registro Nacional de Humedales
 # (SINAC); los dos refugios, el st_point_on_surface() de su polígono oficial
-# de áreas silvestres protegidas recortado al encuadre del video. Los ríos y
-# la estación biológica (OET) están curados a ojo sobre el cuadro de prueba.
+# de áreas silvestres protegidas recortado al encuadre del video; el
+# Tempisque, el píxel de agua de WorldCover más cercano al centro de su
+# tramo suroeste fuera del parque (cauce casi horizontal ahí: ángulo 0). El
+# Bebedero y la estación biológica (OET) están curados a ojo sobre el cuadro
+# de prueba.
 # `hjust` ancla el texto (0,5 = centrado; 0 = a la derecha del punto) y
 # `punto` dibuja además un marcador (para hitos puntuales como la estación).
 ETIQUETAS_VIDEO <- data.frame(
   nombre = c("Laguna Palo Verde", "Río Tempisque", "Río Bebedero",
              "Lomas de Barbudal", "RNVS Mata Redonda", "RNVS Cipancí",
              "Estación Biológica Palo Verde"),
-  lon    = c(-85.3424, -85.400, -85.198, -85.365, -85.4205, -85.4303, -85.3365),
-  lat    = c( 10.3343,  10.305,  10.315,  10.445,  10.3207,  10.3331,  10.3450),
-  angulo = c(0, -55, -75, 0, 0, 0, 0),
+  lon    = c(-85.3424, -85.3441, -85.198, -85.365, -85.4205, -85.4303, -85.3365),
+  lat    = c( 10.3343,  10.3180,  10.315,  10.445,  10.3207,  10.3331,  10.3450),
+  angulo = c(0, 0, -75, 0, 0, 0, 0),
   # Los refugios se anclan a la derecha de su punto (hjust = 0): sus puntos
   # caen junto al borde izquierdo del lienzo y centrados quedarían recortados.
   hjust  = c(0.5, 0.5, 0.5, 0.5, 0, 0, 0),
