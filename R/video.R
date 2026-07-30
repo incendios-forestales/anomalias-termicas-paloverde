@@ -214,7 +214,11 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
   hex_dentro <- grDevices::rgb(rgb_mod[1, ], rgb_mod[2, ], rgb_mod[3, ])
 
   rampa_fuera <- grDevices::colorRampPalette(c("#1a2430", "#2e3947"))(256)
-  colores <- ifelse(as.vector(dentro), hex_dentro,
+  # El agua se tiñe también FUERA del parque: el Tempisque y el Bebedero lo
+  # enmarcan (y dos etiquetas los nombran), pero con la rampa neutra sus
+  # cauces desaparecían.
+  es_agua <- !is.na(clases) & clases == 80
+  colores <- ifelse(as.vector(dentro | es_agua), hex_dentro,
                     rampa_fuera[as.vector(indice)])
   colores[is.na(as.vector(celdas))] <- COLOR_FONDO_VIDEO
 
