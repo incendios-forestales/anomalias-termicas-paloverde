@@ -92,13 +92,19 @@ list(
   tar_target(area_quemada_mensual,
              agregar_mensual_quemas(area_quemada_parque,
                                     rango_meses = range(firms_mensual$aniomes))),
+  # Cobertura y humedales sobre los píxeles quemados (análogos de `cobertura`
+  # y `humedales_detecciones`; el píxel de 500 m ya es el footprint).
+  tar_target(cobertura_quemas,
+             extraer_cobertura_quemas(area_quemada_parque, archivos_worldcover)),
+  tar_target(humedales_quemas,
+             cruzar_quemas_con_humedales(area_quemada_parque, humedales)),
 
   # --- Contexto paisajístico: ¿borde del bosque o terreno abierto? ---------
   tar_target(paisaje_parque,
              composicion_paisaje(parque, archivos_worldcover, bbox_descarga)),
   tar_target(borde_bosque,
              contexto_borde(firms_parque, parque, archivos_worldcover,
-                            bbox_descarga)),
+                            bbox_descarga, quemas = area_quemada_parque)),
 
   # --- Salidas: animaciones -------------------------------------------------
   tar_target(anim_gif,
@@ -146,6 +152,14 @@ list(
              tabla_area_quemada_csv(area_quemada_parque,
                                     "outputs/tables/area_quemada_anual.csv"),
              format = "file"),
+  tar_target(fig_cobertura_quemas,
+             grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                                      "outputs/figs/cobertura_area_quemada.png"),
+             format = "file"),
+  tar_target(fig_climatologia_comparada,
+             grafico_climatologia_comparada(firms_mensual, area_quemada_mensual,
+                                            "outputs/figs/climatologia_comparada.png"),
+             format = "file"),
   tar_target(fig_cobertura,
              grafico_cobertura(cobertura, humedales_detecciones,
                                "outputs/figs/cobertura_detecciones.png"),
@@ -155,16 +169,19 @@ list(
              format = "file"),
   tar_target(tabla_contraste,
              tabla_contraste_csv(cobertura, humedales_detecciones,
+                                 cobertura_quemas, humedales_quemas,
                                  "outputs/tables/contraste_humedales.csv"),
              format = "file"),
   tar_target(tabla_borde,
              tabla_borde_csv(borde_bosque, "outputs/tables/contexto_borde.csv"),
              format = "file"),
   tar_target(tabla_csv,
-             tabla_resumen_csv(firms_parque, "outputs/tables/resumen_anual.csv"),
+             tabla_resumen_csv(firms_parque, area_quemada_parque,
+                               "outputs/tables/resumen_anual.csv"),
              format = "file"),
   tar_target(tabla_html,
-             tabla_resumen_html(firms_parque, "outputs/tables/resumen_anual.html"),
+             tabla_resumen_html(firms_parque, area_quemada_parque,
+                                "outputs/tables/resumen_anual.html"),
              format = "file"),
 
   # --- Reporte Quarto → index.html en la raíz (GitHub Pages) ---------------

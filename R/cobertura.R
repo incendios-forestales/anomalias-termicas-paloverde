@@ -1,5 +1,5 @@
 # Cobertura de la tierra (ESA WorldCover 10 m, 2021) en los footprints de
-# las detecciones MODIS.
+# las detecciones MODIS y en los píxeles de área quemada (MCD64A1).
 #
 # Método: cada detección MODIS es un píxel de ~1 km (mayor fuera del nadir);
 # las columnas scan/track dan sus dimensiones reales en km. Asignar la clase
@@ -120,28 +120,25 @@ footprints_detecciones <- function(puntos) {
   )
 }
 
-# Fracción de cada clase de cobertura dentro del footprint de cada detección
-# y clase dominante. Retorna el data frame de detecciones (sin geometría) con
-# las columnas nuevas: una fila por detección y clase presente en su footprint.
-extraer_cobertura <- function(puntos, archivos_worldcover) {
+# Núcleo compartido: fracción de cada clase de cobertura dentro de cada
+# polígono (footprint elíptico de detección o píxel de área quemada).
+# id_deteccion es el NÚMERO DE FILA del sf de entrada — invariante que
+# explota crear_mapa_temporal() (join por fila antes de ordenar por fecha);
+# para el área quemada es simplemente el id del píxel.
+fracciones_cobertura <- function(poligonos, archivos_worldcover) {
   capa <- if (length(archivos_worldcover) > 1) {
     terra::vrt(archivos_worldcover)
   } else {
     terra::rast(archivos_worldcover)
   }
-  elipses <- footprints_detecciones(puntos) |>
-    sf::st_transform(sf::st_crs(capa))
+  poligonos <- sf::st_transform(poligonos, sf::st_crs(capa))
 
   fracciones <- exactextractr::exact_extract(
-    capa, elipses, fun = "frac", progress = FALSE
+    capa, poligonos, fun = "frac", progress = FALSE
   )
   # exact_extract("frac") retorna una columna frac_<valor> por clase presente
-  cobertura <- fracciones |>
-    dplyr::mutate(
-      id_deteccion = dplyr::row_number(),
-      acq_date = puntos$acq_date,
-      frp = puntos$frp
-    ) |>
+  fracciones |>
+    dplyr::mutate(id_deteccion = dplyr::row_number()) |>
     tidyr::pivot_longer(
       cols = dplyr::starts_with("frac_"),
       names_to = "clase_valor", names_prefix = "frac_",
@@ -149,14 +146,45 @@ extraer_cobertura <- function(puntos, archivos_worldcover) {
     ) |>
     dplyr::filter(fraccion > 0) |>
     dplyr::mutate(clase = CLASES_WORLDCOVER[clase_valor])
-  cobertura
 }
 
-# Clase dominante (mayor fracción del footprint) por detección.
+# Fracción de cada clase dentro del footprint de cada detección. Retorna un
+# data frame sin geometría, una fila por detección y clase presente.
+extraer_cobertura <- function(puntos, archivos_worldcover) {
+  fracciones_cobertura(footprints_detecciones(puntos), archivos_worldcover) |>
+    dplyr::left_join(
+      tibble::tibble(id_deteccion = seq_len(nrow(puntos)),
+                     acq_date = puntos$acq_date, frp = puntos$frp),
+      by = "id_deteccion"
+    ) |>
+    dplyr::relocate(id_deteccion, acq_date, frp)
+}
+
+# Fracción de cada clase dentro de cada píxel de área quemada (el píxel
+# MCD64A1 de 500 m YA es el footprint: no hay elipse que construir).
+extraer_cobertura_quemas <- function(quemas, archivos_worldcover) {
+  if (nrow(quemas) == 0) {
+    return(tibble::tibble(id_deteccion = integer(), fecha = as.Date(character()),
+                          area_ha = numeric(), clase_valor = character(),
+                          fraccion = numeric(), clase = character()))
+  }
+  fracciones_cobertura(quemas, archivos_worldcover) |>
+    dplyr::left_join(
+      tibble::tibble(id_deteccion = seq_len(nrow(quemas)),
+                     fecha = quemas$fecha, area_ha = quemas$area_ha),
+      by = "id_deteccion"
+    ) |>
+    dplyr::relocate(id_deteccion, fecha, area_ha)
+}
+
+# Clase dominante (mayor fracción del footprint o píxel) por fila de entrada.
+# any_of(): arrastra los metadatos presentes según la fuente (acq_date/frp en
+# detecciones; fecha/area_ha en área quemada).
 clase_dominante <- function(cobertura) {
   cobertura |>
     dplyr::slice_max(fraccion, n = 1, by = id_deteccion, with_ties = FALSE) |>
-    dplyr::select(id_deteccion, acq_date, frp, clase, fraccion)
+    dplyr::select(dplyr::any_of(c("id_deteccion", "acq_date", "frp",
+                                  "fecha", "area_ha")), clase, fraccion)
 }
 
 # Resumen por clase: detecciones donde la clase domina el footprint y
@@ -188,16 +216,18 @@ resumen_cobertura <- function(cobertura) {
 #
 # Limitación: las capas nacionales también son fotos fijas (cobertura forestal
 # 2023; registro de humedales sin fecha uniforme) frente a 2001-2026.
-cruzar_con_humedales <- function(puntos, humedales) {
-  elipses <- footprints_detecciones(puntos)
+# Núcleo del cruce: solo usa la geometría y el número de fila de `poligonos`
+# (footprints elípticos o píxeles de quema, cualquier CRS proyectable).
+cruce_humedales <- function(poligonos, humedales) {
+  poligonos <- a_crtm05(poligonos)
   humedales <- a_crtm05(humedales)
 
   interseccion <- sf::st_intersection(
-    sf::st_make_valid(elipses[, c("acq_date", "frp")] |>
-                        dplyr::mutate(id_deteccion = dplyr::row_number())),
+    sf::st_make_valid(poligonos |>
+                        dplyr::transmute(id_deteccion = dplyr::row_number())),
     sf::st_make_valid(humedales[, c("nom_hum", "tipo_hum", "clase_hum")])
   )
-  areas <- elipses |>
+  areas <- poligonos |>
     sf::st_area() |>
     as.numeric()
 
@@ -214,12 +244,21 @@ cruzar_con_humedales <- function(puntos, humedales) {
     ) |>
     dplyr::mutate(fraccion_humedal = pmin(area_humedal / areas[id_deteccion], 1))
 
-  data.frame(id_deteccion = seq_len(nrow(elipses))) |>
+  data.frame(id_deteccion = seq_len(nrow(poligonos))) |>
     dplyr::left_join(resumen, by = "id_deteccion") |>
     dplyr::mutate(
       en_humedal = !is.na(clase_hum),
       fraccion_humedal = tidyr::replace_na(fraccion_humedal, 0)
     )
+}
+
+cruzar_con_humedales <- function(puntos, humedales) {
+  cruce_humedales(footprints_detecciones(puntos), humedales)
+}
+
+# Para el área quemada el polígono del píxel ya es el footprint.
+cruzar_quemas_con_humedales <- function(quemas, humedales) {
+  cruce_humedales(quemas, humedales)
 }
 
 # Contraste WorldCover vs. humedales registrados: por clase dominante de
@@ -240,10 +279,41 @@ contraste_humedales <- function(cobertura, humedales_detecciones) {
     dplyr::arrange(dplyr::desc(detecciones))
 }
 
-# Tabla CSV del contraste (target con format = "file").
-tabla_contraste_csv <- function(cobertura, humedales_detecciones, dest) {
-  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+# Hectáreas quemadas por clase dominante del píxel: análogo de
+# contraste_humedales() para el área quemada, ponderado por area_ha en lugar
+# de contar filas.
+contraste_quemas_por_clase <- function(cobertura_quemas, humedales_quemas) {
+  clase_dominante(cobertura_quemas) |>
+    dplyr::left_join(humedales_quemas, by = "id_deteccion") |>
+    dplyr::summarise(
+      hectareas_quemadas = round(sum(area_ha)),
+      pct_quemado_en_humedal = round(100 * sum(area_ha[en_humedal]) /
+                                       sum(area_ha), 1),
+      .by = clase
+    )
+}
+
+# Contraste combinado detecciones + área quemada, por clase de WorldCover.
+# full_join: una clase que solo domina en quemas (o solo en detecciones) no
+# debe perderse; los porcentajes quedan NA donde la fuente no aporta filas.
+contraste_completo <- function(cobertura, humedales_detecciones,
+                               cobertura_quemas, humedales_quemas) {
   contraste_humedales(cobertura, humedales_detecciones) |>
+    dplyr::full_join(
+      contraste_quemas_por_clase(cobertura_quemas, humedales_quemas),
+      by = "clase"
+    ) |>
+    dplyr::mutate(dplyr::across(c(detecciones, en_humedal, hectareas_quemadas),
+                                \(x) tidyr::replace_na(x, 0))) |>
+    dplyr::arrange(dplyr::desc(detecciones))
+}
+
+# Tabla CSV del contraste (target con format = "file").
+tabla_contraste_csv <- function(cobertura, humedales_detecciones,
+                                cobertura_quemas, humedales_quemas, dest) {
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  contraste_completo(cobertura, humedales_detecciones,
+                     cobertura_quemas, humedales_quemas) |>
     readr::write_csv(dest)
   dest
 }
@@ -346,6 +416,89 @@ crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
 grafico_cobertura <- function(cobertura, humedales_detecciones, dest) {
   p <- crear_grafico_cobertura(cobertura, humedales_detecciones,
                                interactivo = FALSE)
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
+  dest
+}
+
+# Hectáreas quemadas por clase de cobertura dominante del píxel, divididas
+# por condición de humedal (gemelo de conteo_cobertura_humedal, ponderado
+# por area_ha).
+hectareas_cobertura_humedal <- function(cobertura_quemas, humedales_quemas) {
+  clase_dominante(cobertura_quemas) |>
+    dplyr::left_join(humedales_quemas, by = "id_deteccion") |>
+    dplyr::summarise(hectareas = sum(area_ha), .by = c(clase, en_humedal)) |>
+    dplyr::mutate(
+      condicion = factor(
+        ifelse(en_humedal, "En humedal registrado", "Fuera de humedal"),
+        levels = c("En humedal registrado", "Fuera de humedal")
+      )
+    )
+}
+
+# Gemelo del gráfico de cobertura para el área quemada: hectáreas en lugar de
+# detecciones. "Fuera de humedal" usa COLOR_AREA_QUEMADA (morado): identifica
+# a MCD64A1 en todo el reporte y evita leer hectáreas como si fueran
+# detecciones (naranja); el teal de "en humedal" se mantiene para lectura
+# consistente de la condición. COLOR_AREA_QUEMADA se refiere dentro de la
+# función (tar_source() carga cobertura.R después de area_quemada.R, pero el
+# patrón del archivo es no depender del orden de carga).
+crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
+                                           interactivo = FALSE) {
+  hectareas <- hectareas_cobertura_humedal(cobertura_quemas, humedales_quemas)
+  orden <- hectareas |>
+    dplyr::summarise(total = sum(hectareas), .by = clase) |>
+    dplyr::arrange(total)
+  datos <- hectareas |>
+    dplyr::mutate(
+      clase = factor(clase, levels = orden$clase),
+      etiqueta = paste0(
+        "Clase: ", clase,
+        "<br>", condicion,
+        "<br>Área quemada: ", round(hectareas), " ha"
+      )
+    )
+  p <- ggplot2::ggplot(datos, ggplot2::aes(x = hectareas, y = clase,
+                                           fill = condicion, text = etiqueta)) +
+    ggplot2::geom_col(width = 0.7, linewidth = 0.7, color = "white",
+                      position = ggplot2::position_stack(reverse = TRUE)) +
+    ggplot2::scale_fill_manual(
+      values = c("En humedal registrado" = COLOR_EN_HUMEDAL,
+                 "Fuera de humedal" = COLOR_AREA_QUEMADA),
+      name = NULL
+    ) +
+    ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::labs(x = "Hectáreas quemadas", y = NULL) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_line(color = "grey92"),
+      legend.position = "top"
+    )
+  titulo <- "Área quemada por cobertura de la tierra y condición de humedal"
+  subtitulo <- paste("Clase dominante en el píxel de 500 m — WorldCover 2021;",
+                     "humedales: Registro Nacional (SINAC)")
+  fuente <- "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC"
+  if (interactivo) {
+    plotly::ggplotly(p, tooltip = "text") |>
+      configurar_plotly(
+        titulo, subtitulo, fuente = fuente,
+        margen_superior = 130, margen_inferior = 110,
+        desplazamiento_fuente = -78
+      ) |>
+      plotly::layout(legend = list(orientation = "h", x = 0,
+                                   y = 1.02, yanchor = "bottom"))
+  } else {
+    p + ggplot2::labs(title = titulo, subtitle = subtitulo, caption = fuente) +
+      ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))
+  }
+}
+
+# PNG del gráfico de cobertura del área quemada (target con format = "file").
+grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas, dest) {
+  p <- crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                                      interactivo = FALSE)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
   dest

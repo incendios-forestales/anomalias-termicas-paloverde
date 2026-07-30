@@ -37,6 +37,8 @@ límite del parque del
 #| label: datos
 firms_parque <- tar_read(firms_parque, store = almacen)
 firms_mensual <- tar_read(firms_mensual, store = almacen)
+area_quemada_parque <- tar_read(area_quemada_parque, store = almacen)
+area_quemada_mensual <- tar_read(area_quemada_mensual, store = almacen)
 rango <- range(firms_parque$acq_date)
 ```
 
@@ -64,8 +66,8 @@ abre el mapa en pantalla completa.
 
 Desde el control de capas pueden apagarse las capas de detecciones y del
 límite del parque —útil para examinar el fondo— y activarse el área quemada
-(píxeles de MCD64A1, con su fecha de quema en el popup; esta capa no responde
-al deslizador temporal), la cobertura
+(píxeles de MCD64A1, con su fecha de quema en el popup), que el deslizador
+filtra igual que las detecciones, la cobertura
 ([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas nacionales del
 SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
 
@@ -77,35 +79,8 @@ worldcover <- tar_read(archivos_worldcover, store = almacen)
 bbox <- tar_read(bbox_descarga, store = almacen)
 humedales <- tar_read(humedales, store = almacen)
 bosque <- tar_read(bosque, store = almacen)
-area_quemada_parque <- tar_read(area_quemada_parque, store = almacen)
 crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
                     humedales, bosque, quemas = area_quemada_parque)
-```
-
-## Estadísticas
-
-### Serie temporal mensual
-
-Acerque con la rueda o arrastre una región para explorar un período; pase el
-cursor sobre una barra para ver el detalle del mes.
-
-```{r}
-#| label: serie-interactiva
-crear_serie_interactiva(firms_mensual)
-```
-
-### Climatología mensual (estacionalidad)
-
-```{r}
-#| label: climatologia-interactiva
-crear_climatologia_interactiva(firms_mensual)
-```
-
-### Resumen anual
-
-```{r}
-#| label: tabla-resumen
-crear_tabla_resumen(firms_parque)
 ```
 
 ## Área quemada (MCD64A1)
@@ -117,15 +92,21 @@ que la superficie quedó marcada por el fuego, a partir del cambio persistente
 de reflectancia. Aunque FIRMS lista este producto (`BA_MODIS`) y lo dibuja en
 su visor, su API no lo entrega como datos, por lo que el pipeline lo descarga
 del archivo original de la NASA (LP DAAC). El producto se publica con uno o
-dos meses de rezago: esta serie puede terminar antes que la de detecciones.
+dos meses de rezago: su serie puede terminar antes que la de detecciones.
 
-```{r}
-#| label: serie-area-quemada
-area_quemada_mensual <- tar_read(area_quemada_mensual, store = almacen)
-crear_serie_area_quemada(area_quemada_mensual)
-```
+Las estadísticas de las secciones siguientes presentan ambas magnitudes lado
+a lado. **Limitación**: la unidad mínima de MCD64A1 es el píxel de 500 m —
+quemas menores pueden no detectarse y la superficie reportada es la del píxel
+completo, no la de la cicatriz interna—, por lo que las hectáreas son una
+estimación gruesa, útil para comparar años y estaciones entre sí.
 
-### Fuego activo y área quemada
+## Estadísticas
+
+### Serie temporal mensual
+
+Detecciones de fuego activo (arriba) y hectáreas quemadas (abajo), con el eje
+temporal compartido: acerque con la rueda o arrastre una región para explorar
+un período; pase el cursor sobre una barra para ver el detalle del mes.
 
 Las dos series son complementarias y **no sumables**: las detecciones cuentan
 eventos de fuego activo en el momento del sobrevuelo —un mismo incendio genera
@@ -136,21 +117,31 @@ detecciones y pocas hectáreas sugiere fuegos recurrentes en poca superficie
 y rápida entre sobrevuelos.
 
 ```{r}
-#| label: comparacion-series
+#| label: serie-interactiva
 crear_comparacion_series(firms_mensual, area_quemada_mensual)
 ```
 
-### Resumen anual de área quemada
+### Climatología mensual (estacionalidad)
+
+Promedios por mes calendario de ambas magnitudes. El promedio de hectáreas de
+los meses más recientes puede estar levemente subestimado por el rezago de
+publicación de MCD64A1.
 
 ```{r}
-#| label: tabla-area-quemada
-crear_tabla_area_quemada(area_quemada_parque)
+#| label: climatologia-interactiva
+crear_climatologia_comparada(firms_mensual, area_quemada_mensual)
 ```
 
-**Limitación**: la unidad mínima de MCD64A1 es el píxel de 500 m: quemas
-menores pueden no detectarse y la superficie reportada es la del píxel
-completo, no la de la cicatriz interna. Las hectáreas anuales son por tanto
-una estimación gruesa, útil para comparar años y estaciones entre sí.
+### Resumen anual
+
+Los años sin detecciones muestran el FRP en blanco (no hubo detecciones que
+promediar); 0 hectáreas significa que MCD64A1 no marcó píxeles quemados ese
+año.
+
+```{r}
+#| label: tabla-resumen
+crear_tabla_resumen(firms_parque, area_quemada_parque)
+```
 
 ## Cobertura de la tierra
 
@@ -180,6 +171,18 @@ humedales_detecciones <- tar_read(humedales_detecciones, store = almacen)
 crear_grafico_cobertura(cobertura, humedales_detecciones, interactivo = TRUE)
 ```
 
+El gráfico gemelo muestra las **hectáreas quemadas** según la clase dominante
+del píxel MCD64A1. Aquí la clase se asigna al píxel de 500 m completo —no a un
+footprint elíptico— y aplica la misma limitación de la foto fija de 2021.
+
+```{r}
+#| label: cobertura-quemas-interactiva
+cobertura_quemas <- tar_read(cobertura_quemas, store = almacen)
+humedales_quemas <- tar_read(humedales_quemas, store = almacen)
+crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                               interactivo = TRUE)
+```
+
 ### Contraste con el Registro Nacional de Humedales
 
 La clase más frecuente, *pastizal*, merece una advertencia: WorldCover es un
@@ -188,8 +191,13 @@ parque.
 
 ```{r}
 #| label: tabla-contraste
-crear_tabla_contraste(cobertura, humedales_detecciones)
+crear_tabla_contraste(cobertura, humedales_detecciones,
+                      cobertura_quemas, humedales_quemas)
 ```
+
+Las dos últimas columnas extienden el contraste al área quemada: hectáreas
+por clase dominante del píxel y qué porcentaje de esas hectáreas cae dentro
+de un humedal registrado.
 
 El resultado confirma la sospecha: el **95,5 %** de las detecciones cuyo
 footprint domina el *pastizal* de WorldCover caen dentro de un humedal
@@ -257,6 +265,12 @@ y a 0 en terreno abierto; los valores intermedios son justamente los bordes.
 #| label: tabla-borde
 crear_tabla_borde(borde)
 ```
+
+La tabla incluye además, como referencia descriptiva, el reparto del **área
+quemada** (centroides de píxel MCD64A1, ponderados por su superficie): el
+**`r pct_situacion(1, "pct_area_quemada")` %** de las hectáreas quemadas está
+en terreno abierto, un patrón aún más marcado que el de las detecciones. La
+prueba estadística se aplica solo a las detecciones.
 
 Si los incendios prefirieran el borde, la fila central estaría
 sobrerrepresentada. No lo está: **`r pct_situacion(2, "pct_detecciones")` %**
