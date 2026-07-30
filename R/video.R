@@ -541,6 +541,112 @@ cuadro_video <- function(base, capas, info_mes, dest_png) {
   dest_png
 }
 
+# --- Cartel resumen (PNG) ---------------------------------------------------
+
+# Cartel estático que resume las dos series del video con su mismo estilo
+# (fondo, colores, tipografía, encabezado y créditos). Dos paneles apilados
+# con eje x común — nunca un doble eje: hectáreas y detecciones son
+# magnitudes no comparables — y un rótulo directo en el mes máximo de cada
+# serie. Los colores de serie pasan la validación de daltonismo y contraste
+# sobre el fondo oscuro (ΔE 27 protan, 3:1+); el naranja queda apenas sobre
+# la banda de luminosidad recomendada, desviación aceptada por coherencia
+# con el video y porque cada serie vive en su propio panel.
+panel_cartel <- function(datos, columna, color, titulo) {
+  imax <- which.max(datos[[columna]])
+  temprano <- imax < nrow(datos) / 2
+  etiqueta_max <- paste0(
+    MESES_ES[as.integer(format(datos$aniomes[imax], "%m"))], " ",
+    format(datos$aniomes[imax], "%Y"), ": ",
+    contador_es(datos[[columna]][imax])
+  )
+  ggplot2::ggplot(datos, ggplot2::aes(x = aniomes, y = .data[[columna]])) +
+    ggplot2::geom_col(fill = color, width = 25) +
+    ggplot2::annotate("text",
+                      x = datos$aniomes[imax] + if (temprano) 300 else -300,
+                      y = datos[[columna]][imax],
+                      label = etiqueta_max, hjust = if (temprano) 0 else 1,
+                      vjust = 0.9, family = FUENTE_VIDEO, size = 2.9,
+                      color = COLOR_TEXTO_VIDEO) +
+    ggplot2::scale_x_date(date_breaks = "5 years", date_labels = "%Y",
+                          expand = ggplot2::expansion(mult = 0.01)) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.06))) +
+    ggplot2::labs(title = esparcir(titulo), x = NULL, y = NULL) +
+    ggplot2::theme_minimal(base_family = FUENTE_VIDEO) +
+    ggplot2::theme(
+      plot.background  = ggplot2::element_rect(fill = "transparent", color = NA),
+      panel.background = ggplot2::element_rect(fill = "transparent", color = NA),
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_line(color = COLOR_RETICULA,
+                                                 linewidth = 0.3),
+      axis.text  = ggplot2::element_text(color = COLOR_TEXTO_SUAVE, size = 7.5),
+      plot.title = ggplot2::element_text(color = COLOR_TEXTO_SUAVE, size = 8.5),
+      plot.margin = ggplot2::margin(6, 16, 4, 16)
+    )
+}
+
+# Compone el cartel: encabezado y créditos del video (dibujados con grid) y
+# los dos paneles ggplot apilados. Target con format = "file".
+generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest) {
+  datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
+  total_ha  <- sum(datos$hectareas)
+  total_det <- sum(datos$detecciones)
+
+  p_ha  <- panel_cartel(datos, "hectareas", COLOR_QUEMA_VIDEO,
+                        "hectáreas quemadas por mes (MCD64A1)")
+  p_det <- panel_cartel(datos, "detecciones", COLOR_FUEGO_HALO,
+                        "detecciones de fuego por mes (MODIS)")
+
+  # Coordenadas en píxeles: y positiva desde ARRIBA (encabezado) y negativa
+  # desde ABAJO (créditos), misma convención visual que el video.
+  x_px <- function(n) grid::unit(n / ANCHO_PX, "npc")
+  y_px <- function(n) {
+    grid::unit(if (n >= 0) 1 - n / ALTO_PX else -n / ALTO_PX, "npc")
+  }
+  texto <- function(etiqueta, x, y, pt, color, negrita = FALSE) {
+    grid::grid.text(
+      etiqueta, x = x_px(x), y = y_px(y), just = c("left", "bottom"),
+      gp = grid::gpar(fontfamily = FUENTE_VIDEO, fontsize = pt, col = color,
+                      fontface = if (negrita) "bold" else "plain")
+    )
+  }
+
+  alto_encabezado <- 210
+  alto_pie <- 70
+  alto_panel <- (ALTO_PX - alto_encabezado - alto_pie) / 2
+
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  grDevices::png(dest, width = ANCHO_PX, height = ALTO_PX,
+                 type = "cairo", res = 132)
+  grid::grid.newpage()
+  grid::grid.rect(gp = grid::gpar(fill = COLOR_FONDO_VIDEO, col = NA))
+
+  texto("Anomalías Térmicas en el PN Palo Verde, 2001 - 2026",
+        40, 75, 18.2, COLOR_TEXTO_VIDEO, negrita = TRUE)
+  texto(contador_es(total_ha), 40, 150, 21.3, COLOR_QUEMA_VIDEO, negrita = TRUE)
+  texto(esparcir("hectáreas quemadas acumuladas"), 40, 180, 7.7,
+        COLOR_TEXTO_SUAVE)
+  texto(contador_es(total_det), 600, 150, 21.3, COLOR_FUEGO_HALO,
+        negrita = TRUE)
+  texto(esparcir("detecciones de fuego acumuladas"), 600, 180, 7.7,
+        COLOR_TEXTO_SUAVE)
+
+  imprimir <- function(p, y_centro_px) {
+    print(p, vp = grid::viewport(
+      x = 0.5, y = grid::unit(1 - y_centro_px / ALTO_PX, "npc"),
+      width = 1, height = grid::unit(alto_panel / ALTO_PX, "npc")
+    ))
+  }
+  imprimir(p_ha,  alto_encabezado + alto_panel / 2)
+  imprimir(p_det, alto_encabezado + alto_panel * 1.5)
+
+  texto("Datos: NASA FIRMS (MODIS_SP) · NASA LP DAAC (MCD64A1) · SINAC",
+        40, -40, 6.5, COLOR_TEXTO_SUAVE)
+  texto("Estilo: Milos Popovic", 40, -22, 6.5, COLOR_TEXTO_SUAVE)
+  grDevices::dev.off()
+  dest
+}
+
 # --- Generación del video ---------------------------------------------------
 
 # Renderiza los cuadros mensuales y ensambla el MP4 (target format = "file").
