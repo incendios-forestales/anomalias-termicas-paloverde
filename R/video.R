@@ -345,12 +345,12 @@ base_video <- function(relieve, parque) {
                       label = esparcir("2001 - 2026 · Parque Nacional, Costa Rica"),
                       family = FUENTE_VIDEO, size = 3.1,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("text", x = x0, y = y_desde_arriba(262),
-                      label = esparcir("hectáreas quemadas (MCD64A1)"),
+    ggplot2::annotate("text", x = x0, y = y_desde_arriba(250),
+                      label = esparcir("hectáreas quemadas este mes"),
                       family = FUENTE_VIDEO, size = 2.6,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("text", x = x0 + lay$px(560), y = y_desde_arriba(262),
-                      label = esparcir("detecciones MODIS"),
+    ggplot2::annotate("text", x = x0 + lay$px(560), y = y_desde_arriba(250),
+                      label = esparcir("detecciones MODIS este mes"),
                       family = FUENTE_VIDEO, size = 2.6,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     # --- Leyenda, escala, norte y créditos (dentro del mapa) ---
@@ -476,20 +476,40 @@ cuadro_video <- function(base, capas, info_mes, dest_png) {
   lay <- layout_video()
   x0 <- lay$xlim[1] + lay$px(40)
   x1 <- lay$xlim[2] - lay$px(40)
+  # Jerarquía de los contadores: el incremento del mes grande (es lo que el
+  # mapa está mostrando en ese cuadro) y el acumulado desde 2001 en una línea
+  # pequeña debajo. En meses sin actividad el cero va atenuado y sin "+",
+  # para que no compita con los meses con datos.
+  contador_mes <- function(x) {
+    if (x > 0) paste0("+", contador_es(x)) else "0"
+  }
+  color_mes <- function(x, color) if (x > 0) color else COLOR_TEXTO_SUAVE
   p <- suppressMessages(
     Reduce(`+`, capas, init = base) +
       ggplot2::annotate("text", x = x1, y = lay$ylim[2] - lay$px(95),
                         label = info_mes$etiqueta_fecha,
                         family = FUENTE_VIDEO, fontface = "bold", size = 6.8,
                         hjust = 1, vjust = 0, color = COLOR_TEXTO_VIDEO) +
-      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(225),
-                        label = contador_es(info_mes$hectareas_acum),
+      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(215),
+                        label = contador_mes(info_mes$hectareas),
                         family = FUENTE_VIDEO, fontface = "bold", size = 7,
-                        hjust = 0, vjust = 0.5, color = COLOR_QUEMA_VIDEO) +
-      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(225),
-                        label = contador_es(info_mes$detecciones_acum),
+                        hjust = 0, vjust = 0.5,
+                        color = color_mes(info_mes$hectareas, COLOR_QUEMA_VIDEO)) +
+      ggplot2::annotate("text", x = x0, y = lay$ylim[2] - lay$px(278),
+                        label = paste0("Acumulado: ",
+                                       contador_es(info_mes$hectareas_acum), " ha"),
+                        family = FUENTE_VIDEO, size = 2.4,
+                        hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
+      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(215),
+                        label = contador_mes(info_mes$detecciones),
                         family = FUENTE_VIDEO, fontface = "bold", size = 7,
-                        hjust = 0, vjust = 0.5, color = COLOR_FUEGO_HALO) +
+                        hjust = 0, vjust = 0.5,
+                        color = color_mes(info_mes$detecciones, COLOR_FUEGO_HALO)) +
+      ggplot2::annotate("text", x = x0 + lay$px(560), y = lay$ylim[2] - lay$px(278),
+                        label = paste0("Acumulado: ",
+                                       contador_es(info_mes$detecciones_acum)),
+                        family = FUENTE_VIDEO, size = 2.4,
+                        hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
       ggplot2::coord_sf(crs = sf::st_crs(CRS_CRTM05), datum = NA,
                         xlim = lay$xlim, ylim = lay$ylim,
                         expand = FALSE, clip = "off")

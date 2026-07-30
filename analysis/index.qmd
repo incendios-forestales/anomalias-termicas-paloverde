@@ -62,8 +62,9 @@ radiativa del fuego (FRP).
 Resumen mensual 2001--2026 en formato de video: detecciones de fuego activo
 (MODIS) con su estela de los meses recientes y píxeles de área quemada
 (MCD64A1), sobre el relieve del parque teñido por la cobertura de la tierra
-(WorldCover 2021). Los contadores acumulan cada serie por separado: son
-magnitudes complementarias y no sumables.
+(WorldCover 2021). Los contadores muestran el valor del mes en curso y el
+acumulado desde 2001, cada serie por separado: son magnitudes complementarias
+y no sumables.
 
 <video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias, store = almacen))`"></video>
 

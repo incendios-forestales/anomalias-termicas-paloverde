@@ -104,9 +104,10 @@ termina en tiempo razonable. Implementación en
 
 `outputs/figs/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
 un cuadro por mes: detecciones de fuego con resplandor y estela de los meses
-recientes, píxeles de área quemada y contadores acumulados de ambas series
-(por separado: son magnitudes complementarias y no sumables), en un estilo
-inspirado en los videos de [Milos Popovic](https://milospopovic.net/).
+recientes, píxeles de área quemada y, por cada serie, el valor del mes en
+curso con su acumulado desde 2001 (por separado: son magnitudes
+complementarias y no sumables), en un estilo inspirado en los videos de
+[Milos Popovic](https://milospopovic.net/).
 
 - **Render cuadro a cuadro** con ggplot2 (PNG numerados ensamblados con el
   paquete `av`), no con gganimate: los contadores, la fecha y el resplandor
