@@ -106,6 +106,20 @@ list(
              contexto_borde(firms_parque, parque, archivos_worldcover,
                             bbox_descarga, quemas = area_quemada_parque)),
 
+  # --- Video estilo cartel (relieve Terrarium + render cuadro a cuadro) ----
+  # relieve_video es un target propio para que ajustar colores o layout del
+  # video no re-descargue ni re-proyecte el DEM.
+  tar_target(archivos_dem, descargar_dem_terrarium(bbox_descarga),
+             format = "file"),
+  tar_target(relieve_video, fondo_relieve_video(archivos_dem, parque,
+                                                bbox_descarga)),
+  tar_target(video_incendios,
+             generar_video_incendios(firms_parque, area_quemada_parque,
+                                     firms_mensual, area_quemada_mensual,
+                                     parque, relieve_video,
+                                     "outputs/figs/video_incendios.mp4"),
+             format = "file"),
+
   # --- Salidas: animaciones -------------------------------------------------
   tar_target(anim_gif,
              animar_detecciones(firms_parque, parque, firms_mensual,

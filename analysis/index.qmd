@@ -57,6 +57,15 @@ radiativa del fuego (FRP).
 
 ![](`r file.path("..", tar_read(anim_gif, store = almacen))`)
 
+## Video resumen
+
+Resumen mensual 2001--2026 en formato de video: detecciones de fuego activo
+(MODIS) con su estela de los meses recientes y píxeles de área quemada
+(MCD64A1), sobre el relieve del parque. Los contadores acumulan cada serie
+por separado: son magnitudes complementarias y no sumables.
+
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_incendios, store = almacen))`"></video>
+
 ## Mapa interactivo
 
 Use el deslizador temporal para explorar las detecciones a través del tiempo;
