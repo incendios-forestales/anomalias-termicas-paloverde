@@ -68,6 +68,13 @@ complementarias y no sumables.
 
 <video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias, store = almacen))`"></video>
 
+El cartel estático resume las dos series mensuales del video: los acumulados
+arriba y, en paneles separados —son magnitudes complementarias y no
+sumables—, las hectáreas quemadas y las detecciones por mes, con el mes
+máximo de cada serie rotulado.
+
+![](`r file.path("..", tar_read(cartel_resumen, store = almacen))`){width=540}
+
 ## Mapa interactivo
 
 Use el deslizador temporal para explorar las detecciones a través del tiempo;
