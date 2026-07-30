@@ -77,11 +77,27 @@ PALETA_COBERTURA_VIDEO <- c(
 )
 
 # Etiquetas geográficas (WGS84); se proyectan a CRTM05 en base_video().
+# Posiciones con respaldo en datos: la laguna es el st_point_on_surface()
+# del polígono "Humedal Palo Verde 1" del Registro Nacional de Humedales
+# (SINAC); los dos refugios, el st_point_on_surface() de su polígono oficial
+# de áreas silvestres protegidas recortado al encuadre del video; el
+# Tempisque, el píxel de agua de WorldCover más cercano al centro de su
+# tramo suroeste fuera del parque (cauce casi horizontal ahí: ángulo 0). El
+# Bebedero y la estación biológica (OET) están curados a ojo sobre el cuadro
+# de prueba.
+# `hjust` ancla el texto (0,5 = centrado; 0 = a la derecha del punto) y
+# `punto` dibuja además un marcador (para hitos puntuales como la estación).
 ETIQUETAS_VIDEO <- data.frame(
-  nombre = c("Laguna Palo Verde", "Río Tempisque", "Lomas de Barbudal"),
-  lon    = c(-85.345, -85.400, -85.365),
-  lat    = c( 10.348,  10.305,  10.445),
-  angulo = c(0, -55, 0)
+  nombre = c("Laguna Palo Verde", "Río Tempisque", "Río Bebedero",
+             "Lomas de Barbudal", "RNVS Mata Redonda", "RNVS Cipancí",
+             "Estación Biológica Palo Verde"),
+  lon    = c(-85.3424, -85.3441, -85.198, -85.365, -85.4205, -85.4303, -85.3365),
+  lat    = c( 10.3343,  10.3180,  10.315,  10.445,  10.3207,  10.3331,  10.3450),
+  angulo = c(0, 0, -75, 0, 0, 0, 0),
+  # Los refugios se anclan a la derecha de su punto (hjust = 0): sus puntos
+  # caen junto al borde izquierdo del lienzo y centrados quedarían recortados.
+  hjust  = c(0.5, 0.5, 0.5, 0.5, 0, 0, 0),
+  punto  = c(FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, TRUE)
 )
 
 # --- Descarga y decodificación del DEM -------------------------------------
@@ -201,7 +217,11 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
   hex_dentro <- grDevices::rgb(rgb_mod[1, ], rgb_mod[2, ], rgb_mod[3, ])
 
   rampa_fuera <- grDevices::colorRampPalette(c("#1a2430", "#2e3947"))(256)
-  colores <- ifelse(as.vector(dentro), hex_dentro,
+  # El agua se tiñe también FUERA del parque: el Tempisque y el Bebedero lo
+  # enmarcan (y dos etiquetas los nombran), pero con la rampa neutra sus
+  # cauces desaparecían.
+  es_agua <- !is.na(clases) & clases == 80
+  colores <- ifelse(as.vector(dentro | es_agua), hex_dentro,
                     rampa_fuera[as.vector(indice)])
   colores[is.na(as.vector(celdas))] <- COLOR_FONDO_VIDEO
 
@@ -329,8 +349,14 @@ base_video <- function(relieve, parque) {
                        ggplot2::aes(x = x, y = y, label = texto, angle = angulo),
                        family = FUENTE_VIDEO, size = 2.4,
                        color = COLOR_TEXTO_SUAVE) +
+    ggplot2::geom_point(data = pos_etiquetas[pos_etiquetas$punto, ],
+                        ggplot2::aes(x = X, y = Y),
+                        color = COLOR_TEXTO_SUAVE, size = 0.9) +
+    # El texto de los hitos con marcador va desplazado a la derecha del punto.
     ggplot2::geom_text(data = pos_etiquetas,
-                       ggplot2::aes(x = X, y = Y, label = nombre, angle = angulo),
+                       ggplot2::aes(x = X + ifelse(hjust == 0, lay$px(10), 0),
+                                    y = Y, label = nombre, angle = angulo,
+                                    hjust = hjust),
                        family = FUENTE_VIDEO, fontface = "italic", size = 2.9,
                        color = COLOR_TEXTO_SUAVE) +
     # --- Encabezado (banda superior, coordenadas de datos) ---
