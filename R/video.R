@@ -343,11 +343,11 @@ base_video <- function(relieve, parque) {
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(176),
                       label = esparcir("hectáreas quemadas acumuladas"),
-                      family = FUENTE_VIDEO, size = 2.2,
+                      family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("text", x = x0 + lay$px(560), y = y_desde_arriba(176),
-                      label = esparcir("detecciones de fuego activo acumuladas"),
-                      family = FUENTE_VIDEO, size = 2.2,
+                      label = esparcir("detecciones de fuego acumuladas"),
+                      family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     # --- Leyenda, escala, norte y créditos (dentro del mapa) ---
     ggplot2::annotate("point", x = x0, y = y_desde_abajo(106),
