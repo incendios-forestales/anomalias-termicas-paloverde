@@ -30,7 +30,8 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
 4. **Contexto paisajístico**: contraste de las detecciones contra un modelo
    nulo de puntos aleatorios en el parque, para distinguir un efecto de borde
    real de una ilusión geométrica (ver más abajo).
-5. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, mapa
+5. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, video
+   estilo cartel con relieve y contadores acumulados (ver más abajo), mapa
    leaflet con deslizador temporal, control de pantalla completa y capas
    conmutables (detecciones, límite del parque, cobertura y capas del
    SINAC), serie temporal
@@ -98,6 +99,30 @@ La métrica es la fracción de bosque en un vecindario y no la distancia al bord
 más cercano porque un `distance()` sobre el raster de 10 m del parque no
 termina en tiempo razonable. Implementación en
 [`R/contexto_paisaje.R`](R/contexto_paisaje.R).
+
+### Video estilo cartel
+
+`outputs/figs/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
+un cuadro por mes: detecciones de fuego con resplandor y estela de los meses
+recientes, píxeles de área quemada y, por cada serie, el acumulado desde
+2001 con el valor del mes en curso debajo (por separado: son magnitudes
+complementarias y no sumables), en un estilo inspirado en los videos de
+[Milos Popovic](https://milospopovic.net/).
+
+- **Render cuadro a cuadro** con ggplot2 (PNG numerados ensamblados con el
+  paquete `av`), no con gganimate: los contadores, la fecha y el resplandor
+  multicapa cambian texto y número de capas en cada cuadro.
+- **Relieve**: teselas [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/)
+  (Mapzen/AWS, formato Terrarium, públicas y sin autenticación), que
+  codifican la elevación en los canales RGB del PNG:
+  `elevación (m) = R·256 + G + B/256 − 32768`. Se cachean en `data/raw/dem/`
+  y el hillshade se calcula con terra.
+- **Fondo por cobertura**: dentro del parque el matiz del fondo viene de la
+  clase de WorldCover (paleta oscura propia, no la oficial: sobre fondo
+  oscuro competiría con las detecciones y quemas) y la luminancia del
+  hillshade; fuera del parque, una rampa neutra atenuada.
+
+Implementación en [`R/video.R`](R/video.R).
 
 ## Requisitos
 
@@ -180,6 +205,7 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 | [NASA LP DAAC](https://lpdaac.usgs.gov/) | Área quemada mensual MCD64A1 v6.1 (500 m), DOI: 10.5067/MODIS/MCD64A1.061 | Acceso abierto con Earthdata Login; se agradece atribución a NASA LP DAAC |
 | [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde, capa oficial 1:5000 publicada en 2019 (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales, actualización 2016–2018 (`PNE:registro_nacional_humedales`), y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura de la tierra 2021 a 10 m (v200), DOI: 10.5281/zenodo.7254221 | CC BY 4.0; atribución a ESA WorldCover |
+| [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | Modelo de elevación (formato Terrarium, zoom 13) para el relieve del video | Datos abiertos en AWS; atribución a Mapzen y las fuentes del DEM (SRTM, NASA) |
 
 ## Trabajo futuro
 
