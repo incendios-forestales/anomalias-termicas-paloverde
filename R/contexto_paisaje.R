@@ -55,10 +55,18 @@ fraccion_bosque_vecindario <- function(geometrias, bosque, radio_m) {
 # Compara la situación paisajística de las detecciones contra puntos aleatorios
 # dentro del parque. Retorna la tabla de porcentajes por situación y las
 # medidas de apoyo que cita el reporte.
+# Con `quemas` (polígonos de píxel MCD64A1), agrega la columna descriptiva
+# pct_area_quemada: porcentaje del área quemada por situación, ponderado por
+# area_ha (la etiqueta queda literalmente cierta, aunque con píxeles de
+# ~21.5 ha equivale casi a contar). Se usan los CENTROIDES de los píxeles:
+# un buffer de radio_m sobre el polígono daría un vecindario de ~3x radio_m,
+# incomparable con el de las detecciones. La prueba de proporciones sigue
+# siendo solo detecciones vs. aleatorios.
 contexto_borde <- function(puntos, parque, archivos_worldcover, bbox,
                            radio_m = RADIO_VECINDARIO_M,
                            n_aleatorios = N_PUNTOS_ALEATORIOS,
-                           semilla = SEMILLA_ALEATORIOS) {
+                           semilla = SEMILLA_ALEATORIOS,
+                           quemas = NULL) {
   recorte <- recortar_worldcover(archivos_worldcover, bbox)
   poligono <- sf::st_transform(parque, terra::crs(recorte))
   # Recorte al parque antes de reclasificar: el bbox de descarga lleva buffer
@@ -90,12 +98,13 @@ contexto_borde <- function(puntos, parque, archivos_worldcover, bbox,
     c(length(f_detecciones), length(f_aleatorios))
   )
 
-  list(
-    tabla = tibble::tibble(
-      situacion = ETIQUETAS_BORDE,
-      pct_detecciones = reparto(f_detecciones),
-      pct_aleatorio = reparto(f_aleatorios)
-    ),
+  tabla <- tibble::tibble(
+    situacion = ETIQUETAS_BORDE,
+    pct_detecciones = reparto(f_detecciones),
+    pct_aleatorio = reparto(f_aleatorios)
+  )
+  resultado <- list(
+    tabla = tabla,
     n_detecciones = length(f_detecciones),
     n_aleatorios = length(f_aleatorios),
     radio_m = radio_m,
@@ -103,15 +112,36 @@ contexto_borde <- function(puntos, parque, archivos_worldcover, bbox,
     mediana_aleatorios = stats::median(f_aleatorios),
     p_borde = prueba$p.value
   )
+
+  if (!is.null(quemas) && nrow(quemas) > 0) {
+    f_quemas <- fraccion_bosque_vecindario(
+      sf::st_centroid(sf::st_geometry(quemas)), bosque, radio_m
+    )
+    pesos <- quemas$area_ha[!is.na(f_quemas)]
+    f_quemas <- f_quemas[!is.na(f_quemas)]
+    pct_quemas <- as.numeric(
+      100 * tapply(pesos, situacion(f_quemas), sum, default = 0) / sum(pesos)
+    )
+    resultado$tabla <- tabla |>
+      dplyr::mutate(pct_area_quemada = pct_quemas, .after = pct_detecciones)
+    resultado$n_pixeles_quemas <- length(f_quemas)
+    resultado$mediana_quemas <- stats::median(f_quemas)
+  }
+  resultado
 }
 
 # Widget DT con el contraste de situación paisajística (para el reporte).
+# Los encabezados se resuelven por nombre de columna: la tabla puede traer o
+# no pct_area_quemada y los rótulos nunca se desalinean.
 crear_tabla_borde <- function(contexto) {
+  nombres <- c(situacion = "Situación paisajística",
+               pct_detecciones = "% de las detecciones",
+               pct_area_quemada = "% del área quemada",
+               pct_aleatorio = "% esperado por azar")
   DT::datatable(
     contexto$tabla |>
       dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 1))),
-    colnames = c("Situación paisajística", "% de las detecciones",
-                 "% esperado por azar"),
+    colnames = unname(nombres[names(contexto$tabla)]),
     caption = paste0(
       "Situación paisajística de las detecciones frente a ",
       contexto$n_aleatorios, " puntos aleatorios dentro del parque ",

@@ -209,6 +209,56 @@ crear_comparacion_series <- function(firms_mensual, quemas_mensual) {
     )
 }
 
+# Climatología comparada: promedios por mes calendario de detecciones (arriba)
+# y hectáreas quemadas (abajo), con el eje de meses compartido. Mismos niveles
+# de factor en ambos paneles: shareX exige ejes idénticos.
+crear_climatologia_comparada <- function(firms_mensual, quemas_mensual) {
+  tema <- ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_line(color = "grey92")
+    )
+  clima_firms <- firms_mensual |>
+    dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
+    dplyr::mutate(
+      nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
+      etiqueta = paste0("Mes: ", nombre_mes,
+                        "<br>Promedio: ", round(promedio, 1), " detecciones")
+    )
+  clima_quemas <- quemas_mensual |>
+    dplyr::summarise(promedio = mean(hectareas), .by = mes) |>
+    dplyr::mutate(
+      nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
+      etiqueta = paste0("Mes: ", nombre_mes,
+                        "<br>Promedio: ", round(promedio), " ha")
+    )
+  p_firms <- ggplot2::ggplot(clima_firms,
+                             ggplot2::aes(x = nombre_mes, y = promedio,
+                                          text = etiqueta)) +
+    ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 0.7) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::labs(x = NULL, y = "Detecciones promedio") +
+    tema
+  p_quemas <- ggplot2::ggplot(clima_quemas,
+                              ggplot2::aes(x = nombre_mes, y = promedio,
+                                           text = etiqueta)) +
+    ggplot2::geom_col(fill = COLOR_AREA_QUEMADA, width = 0.7) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::labs(x = NULL, y = "Hectáreas promedio") +
+    tema
+  plotly::subplot(
+    plotly::ggplotly(p_firms, tooltip = "text"),
+    plotly::ggplotly(p_quemas, tooltip = "text"),
+    nrows = 2, shareX = TRUE, titleY = TRUE, margin = 0.05
+  ) |>
+    configurar_plotly(
+      "Climatología mensual: fuego activo y área quemada",
+      "Promedios por mes calendario — detecciones FIRMS (arriba) y hectáreas MCD64A1 (abajo)",
+      fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+    )
+}
+
 # Versiones PNG (targets con format = "file", patrón dest -> dest).
 grafico_area_quemada <- function(quemas_mensual, dest) {
   p <- ggplot2::ggplot(quemas_mensual,
@@ -231,6 +281,49 @@ grafico_area_quemada <- function(quemas_mensual, dest) {
     )
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 10, height = 4.5, dpi = 200)
+  dest
+}
+
+grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest) {
+  niveles <- c("Detecciones promedio (FIRMS)",
+               "Hectáreas quemadas promedio (MCD64A1)")
+  datos <- dplyr::bind_rows(
+    firms_mensual |>
+      dplyr::summarise(valor = mean(detecciones), .by = mes) |>
+      dplyr::mutate(serie = niveles[[1]]),
+    quemas_mensual |>
+      dplyr::summarise(valor = mean(hectareas), .by = mes) |>
+      dplyr::mutate(serie = niveles[[2]])
+  ) |>
+    dplyr::mutate(
+      nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
+      serie = factor(serie, levels = niveles)
+    )
+  p <- ggplot2::ggplot(datos, ggplot2::aes(x = nombre_mes, y = valor,
+                                           fill = serie)) +
+    ggplot2::geom_col(width = 0.7, show.legend = FALSE) +
+    ggplot2::facet_wrap(~serie, ncol = 1, scales = "free_y") +
+    ggplot2::scale_fill_manual(
+      values = stats::setNames(c(COLOR_DETECCIONES, COLOR_AREA_QUEMADA),
+                               niveles)
+    ) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::labs(
+      title = "Climatología mensual: fuego activo y área quemada",
+      subtitle = "Promedios por mes calendario — PN Palo Verde",
+      x = NULL, y = NULL,
+      caption = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_line(color = "grey92"),
+      plot.title = ggplot2::element_text(face = "bold"),
+      strip.text = ggplot2::element_text(face = "bold", hjust = 0)
+    )
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 8, height = 7, dpi = 200)
   dest
 }
 
