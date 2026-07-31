@@ -226,6 +226,13 @@ futuras) en [`R/constantes.R`](R/constantes.R).
   Forestal del SINAC (deciduo, maduro, secundario), que aportan vocabulario
   ecológico local — el bosque deciduo es el bosque seco característico del
   parque.
+- Cobertura con resolución temporal: WorldCover es una clasificación del año
+  2021 completo, sin fecha por píxel, así que no distingue la marisma
+  inundada de la marisma seca en el mes de cada detección. Alternativas:
+  [Google Dynamic World](https://dynamicworld.app/) (cobertura a 10 m por
+  escena de Sentinel-2, con fecha, desde mediados de 2015 — cubriría solo el
+  tramo final del registro) o compuestos estacionales propios de Sentinel-2
+  (2015+) o Landsat (todo el registro, a 30 m).
 - Modelar los factores de ignición con covariables de accesibilidad (cercanía
   a caminos, linderos y zonas de cultivo). El análisis de contexto paisajístico
   descarta que el patrón visual sea un efecto de borde, pero su modelo nulo
