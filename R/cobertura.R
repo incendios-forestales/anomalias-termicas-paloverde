@@ -353,7 +353,8 @@ conteo_cobertura_humedal <- function(cobertura, humedales_detecciones) {
 # Gráfico de barras apiladas: detecciones por clase de cobertura dominante,
 # segmentadas por condición de humedal.
 crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
-                                    interactivo = FALSE) {
+                                    interactivo = FALSE,
+                                    fuente = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC") {
   conteos <- conteo_cobertura_humedal(cobertura, humedales_detecciones)
   orden <- conteos |>
     dplyr::summarise(total = sum(detecciones), .by = clase) |>
@@ -394,7 +395,7 @@ crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
         "Detecciones por cobertura de la tierra y condición de humedal",
         paste("Clase dominante en el footprint — WorldCover 2021;",
               "humedales: Registro Nacional (SINAC)"),
-        fuente = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC",
+        fuente = fuente,
         # El eje x lleva rótulo ("Detecciones"), por eso la fuente baja más
         margen_superior = 130, margen_inferior = 110,
         desplazamiento_fuente = -78
@@ -406,16 +407,17 @@ crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
       title = "Detecciones por cobertura de la tierra y condición de humedal",
       subtitle = paste("Clase dominante en el footprint — WorldCover 2021;",
                        "humedales: Registro Nacional (SINAC)"),
-      caption = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC"
+      caption = fuente
     ) +
       ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))
   }
 }
 
 # PNG del gráfico de cobertura (target con format = "file").
-grafico_cobertura <- function(cobertura, humedales_detecciones, dest) {
+grafico_cobertura <- function(cobertura, humedales_detecciones, dest,
+                              fuente = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC") {
   p <- crear_grafico_cobertura(cobertura, humedales_detecciones,
-                               interactivo = FALSE)
+                               interactivo = FALSE, fuente = fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
   dest
@@ -444,7 +446,8 @@ hectareas_cobertura_humedal <- function(cobertura_quemas, humedales_quemas) {
 # función (tar_source() carga cobertura.R después de area_quemada.R, pero el
 # patrón del archivo es no depender del orden de carga).
 crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
-                                           interactivo = FALSE) {
+                                           interactivo = FALSE,
+                                           fuente = "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC") {
   hectareas <- hectareas_cobertura_humedal(cobertura_quemas, humedales_quemas)
   orden <- hectareas |>
     dplyr::summarise(total = sum(hectareas), .by = clase) |>
@@ -479,7 +482,6 @@ crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
   titulo <- "Área quemada por cobertura de la tierra y condición de humedal"
   subtitulo <- paste("Clase dominante en el píxel de 500 m — WorldCover 2021;",
                      "humedales: Registro Nacional (SINAC)")
-  fuente <- "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC"
   if (interactivo) {
     plotly::ggplotly(p, tooltip = "text") |>
       configurar_plotly(
@@ -496,9 +498,10 @@ crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
 }
 
 # PNG del gráfico de cobertura del área quemada (target con format = "file").
-grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas, dest) {
+grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas, dest,
+                                     fuente = "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC") {
   p <- crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
-                                      interactivo = FALSE)
+                                      interactivo = FALSE, fuente = fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
   dest

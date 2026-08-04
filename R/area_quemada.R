@@ -135,7 +135,9 @@ agregar_mensual_quemas <- function(quemas, rango_meses = NULL) {
 #     módulo viven en el módulo; reutilizan configurar_plotly y MESES_ES) ----
 
 # Serie mensual interactiva de hectáreas quemadas (widget plotly).
-crear_serie_area_quemada <- function(quemas_mensual) {
+crear_serie_area_quemada <- function(quemas_mensual,
+                                     etiqueta_ba = "MCD64A1",
+                                     fuente = FUENTE_MCD64A1) {
   datos <- quemas_mensual |>
     dplyr::mutate(etiqueta = paste0(
       "Mes: ", MESES_ES[mes], " ", format(aniomes, "%Y"),
@@ -156,8 +158,8 @@ crear_serie_area_quemada <- function(quemas_mensual) {
   plotly::ggplotly(p, tooltip = "text") |>
     configurar_plotly(
       "Área quemada mensual",
-      "Parque Nacional Palo Verde — MCD64A1 (píxeles de 500 m)",
-      fuente = FUENTE_MCD64A1
+      paste0("Parque Nacional Palo Verde — ", etiqueta_ba, " (píxeles de 500 m)"),
+      fuente = fuente
     )
 }
 
@@ -165,7 +167,9 @@ crear_serie_area_quemada <- function(quemas_mensual) {
 # compartido. NUNCA un doble eje y ni barras sumadas: son magnitudes distintas
 # (conteo de detecciones vs. superficie) y el doble eje invita a lecturas
 # espurias de proporcionalidad.
-crear_comparacion_series <- function(firms_mensual, quemas_mensual) {
+crear_comparacion_series <- function(firms_mensual, quemas_mensual,
+                                     etiqueta_ba = "MCD64A1",
+                                     fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
   tema <- ggplot2::theme_minimal() +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),
@@ -204,15 +208,18 @@ crear_comparacion_series <- function(firms_mensual, quemas_mensual) {
   ) |>
     configurar_plotly(
       "Fuego activo y área quemada",
-      "PN Palo Verde — detecciones FIRMS (arriba) y hectáreas MCD64A1 (abajo)",
-      fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+      paste0("PN Palo Verde — detecciones FIRMS (arriba) y hectáreas ",
+             etiqueta_ba, " (abajo)"),
+      fuente = fuente
     )
 }
 
 # Climatología comparada: promedios por mes calendario de detecciones (arriba)
 # y hectáreas quemadas (abajo), con el eje de meses compartido. Mismos niveles
 # de factor en ambos paneles: shareX exige ejes idénticos.
-crear_climatologia_comparada <- function(firms_mensual, quemas_mensual) {
+crear_climatologia_comparada <- function(firms_mensual, quemas_mensual,
+                                         etiqueta_ba = "MCD64A1",
+                                         fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
   tema <- ggplot2::theme_minimal() +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),
@@ -254,13 +261,16 @@ crear_climatologia_comparada <- function(firms_mensual, quemas_mensual) {
   ) |>
     configurar_plotly(
       "Climatología mensual: fuego activo y área quemada",
-      "Promedios por mes calendario — detecciones FIRMS (arriba) y hectáreas MCD64A1 (abajo)",
-      fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+      paste0("Promedios por mes calendario — detecciones FIRMS (arriba) y hectáreas ",
+             etiqueta_ba, " (abajo)"),
+      fuente = fuente
     )
 }
 
 # Versiones PNG (targets con format = "file", patrón dest -> dest).
-grafico_area_quemada <- function(quemas_mensual, dest) {
+grafico_area_quemada <- function(quemas_mensual, dest,
+                                 etiqueta_ba = "MCD64A1",
+                                 fuente = FUENTE_MCD64A1) {
   p <- ggplot2::ggplot(quemas_mensual,
                        ggplot2::aes(x = aniomes, y = hectareas)) +
     ggplot2::geom_col(fill = COLOR_AREA_QUEMADA, width = 25) +
@@ -268,9 +278,10 @@ grafico_area_quemada <- function(quemas_mensual, dest) {
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
     ggplot2::labs(
       title = "Área quemada mensual",
-      subtitle = "Parque Nacional Palo Verde — MCD64A1 (píxeles de 500 m)",
+      subtitle = paste0("Parque Nacional Palo Verde — ", etiqueta_ba,
+                        " (píxeles de 500 m)"),
       x = NULL, y = "Hectáreas quemadas por mes",
-      caption = FUENTE_MCD64A1
+      caption = fuente
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -284,9 +295,11 @@ grafico_area_quemada <- function(quemas_mensual, dest) {
   dest
 }
 
-grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest) {
+grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest,
+                                           etiqueta_ba = "MCD64A1",
+                                           fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
   niveles <- c("Detecciones promedio (FIRMS)",
-               "Hectáreas quemadas promedio (MCD64A1)")
+               paste0("Hectáreas quemadas promedio (", etiqueta_ba, ")"))
   datos <- dplyr::bind_rows(
     firms_mensual |>
       dplyr::summarise(valor = mean(detecciones), .by = mes) |>
@@ -312,7 +325,7 @@ grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest) 
       title = "Climatología mensual: fuego activo y área quemada",
       subtitle = "Promedios por mes calendario — PN Palo Verde",
       x = NULL, y = NULL,
-      caption = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+      caption = fuente
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -327,9 +340,11 @@ grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest) 
   dest
 }
 
-grafico_comparacion <- function(firms_mensual, quemas_mensual, dest) {
+grafico_comparacion <- function(firms_mensual, quemas_mensual, dest,
+                                etiqueta_ba = "MCD64A1",
+                                fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
   niveles <- c("Detecciones de fuego activo (FIRMS)",
-               "Área quemada en hectáreas (MCD64A1)")
+               paste0("Área quemada en hectáreas (", etiqueta_ba, ")"))
   datos <- dplyr::bind_rows(
     firms_mensual |>
       dplyr::transmute(aniomes, valor = detecciones, serie = niveles[[1]]),
@@ -351,7 +366,7 @@ grafico_comparacion <- function(firms_mensual, quemas_mensual, dest) {
       title = "Fuego activo y área quemada",
       subtitle = "Parque Nacional Palo Verde — series complementarias, no sumables",
       x = NULL, y = NULL,
-      caption = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)"
+      caption = fuente
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(

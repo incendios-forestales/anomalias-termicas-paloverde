@@ -15,7 +15,9 @@ MESES_ES <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
 # fantasma invisibles, para que el tiempo avance a ritmo constante.
 # El formato de salida se infiere de la extensión de `dest` (.gif o .mp4).
 animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
-                               bbox, dest, fps = 4) {
+                               bbox, dest, fps = 4,
+                               etiqueta_fuente = "MODIS (FIRMS)",
+                               fuente_datos = "Datos: NASA FIRMS (MODIS_SP) y SINAC. Fondo: ESA WorldCover 2021") {
   etiquetas <- format(mensual$aniomes, "%Y-%m")
   puntos <- puntos |>
     dplyr::mutate(cuadro = factor(format(aniomes, "%Y-%m"), levels = etiquetas))
@@ -44,8 +46,8 @@ animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
                                   name = "FRP (MW)") +
     ggplot2::labs(
       title = "Anomalías térmicas en el Parque Nacional Palo Verde",
-      subtitle = "Detecciones MODIS (FIRMS) — mes: {current_frame}",
-      caption = "Datos: NASA FIRMS (MODIS_SP) y SINAC. Fondo: ESA WorldCover 2021"
+      subtitle = paste0("Detecciones ", etiqueta_fuente, " — mes: {current_frame}"),
+      caption = fuente_datos
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -82,7 +84,8 @@ animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
 # `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
 crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
                                 bbox, humedales = NULL, bosque = NULL,
-                                quemas = NULL) {
+                                quemas = NULL,
+                                etiqueta_quemas = "Área quemada (MCD64A1)") {
   # Clase de cobertura dominante por detección (id_deteccion es el número de
   # fila de `puntos` en el orden en que extraer_cobertura() los recibió, por
   # lo que el join debe hacerse ANTES de reordenar por fecha).
@@ -110,7 +113,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
   GRUPO_HUMEDALES <- "Humedales (registro nacional)"
   GRUPO_BOSQUE    <- "Cobertura forestal (2023)"
   GRUPO_PARQUE    <- "Límite del PN Palo Verde"
-  GRUPO_QUEMAS    <- "Área quemada (MCD64A1)"
+  GRUPO_QUEMAS    <- etiqueta_quemas
   hay_quemas <- !is.null(quemas) && nrow(quemas) > 0
   # Los píxeles quemados llevan layerId propio para que el deslizador pueda
   # mostrarlos u ocultarlos uno por uno (ver onRender).
@@ -194,7 +197,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         "<strong>Fecha:</strong> ", acq_date,
         "<br><strong>Hora (UTC):</strong> ", sprintf("%04d", acq_time),
         "<br><strong>FRP (MW):</strong> ", num_es(frp),
-        "<br><strong>Confianza:</strong> ", confidence,
+        "<br><strong>Confianza:</strong> ", etiqueta_confianza(confidence),
         "<br><strong>Satélite:</strong> ", satellite,
         "<br><strong>Cobertura dominante (2021):</strong> ", clase_cobertura,
         " (", round(fraccion_cobertura * 100), " %)"
@@ -348,9 +351,10 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
 
 # Guarda el mapa temporal como HTML autocontenido (target con format = "file").
 mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                  bbox, humedales, bosque, dest, quemas = NULL) {
+                                  bbox, humedales, bosque, dest, quemas = NULL,
+                                  etiqueta_quemas = "Área quemada (MCD64A1)") {
   m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox,
-                           humedales, bosque, quemas)
+                           humedales, bosque, quemas, etiqueta_quemas)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(m, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
@@ -358,16 +362,18 @@ mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover
 }
 
 # Serie temporal mensual de detecciones (una serie: sin leyenda, un solo tono).
-grafico_serie_temporal <- function(mensual, dest) {
+grafico_serie_temporal <- function(mensual, dest,
+                                   etiqueta_fuente = "MODIS (FIRMS)",
+                                   fuente = "Datos: NASA FIRMS (MODIS_SP)") {
   p <- ggplot2::ggplot(mensual, ggplot2::aes(x = aniomes, y = detecciones)) +
     ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 25) +
     ggplot2::scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
     ggplot2::labs(
       title = "Detecciones mensuales de anomalías térmicas",
-      subtitle = "Parque Nacional Palo Verde — MODIS (FIRMS)",
+      subtitle = paste0("Parque Nacional Palo Verde — ", etiqueta_fuente),
       x = NULL, y = "Detecciones por mes",
-      caption = "Datos: NASA FIRMS (MODIS_SP)"
+      caption = fuente
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -383,7 +389,9 @@ grafico_serie_temporal <- function(mensual, dest) {
 
 # Climatología mensual: promedio de detecciones por mes calendario
 # (estacionalidad de la época seca).
-grafico_climatologia <- function(mensual, dest) {
+grafico_climatologia <- function(mensual, dest,
+                                 etiqueta_fuente = "MODIS (FIRMS)",
+                                 fuente = "Datos: NASA FIRMS (MODIS_SP)") {
   clima <- mensual |>
     dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
     dplyr::mutate(nombre_mes = factor(MESES_ES[mes], levels = MESES_ES))
@@ -392,9 +400,10 @@ grafico_climatologia <- function(mensual, dest) {
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
     ggplot2::labs(
       title = "Climatología mensual de anomalías térmicas",
-      subtitle = "Promedio de detecciones por mes calendario — PN Palo Verde, MODIS (FIRMS)",
+      subtitle = paste0("Promedio de detecciones por mes calendario — PN Palo Verde, ",
+                        etiqueta_fuente),
       x = NULL, y = "Detecciones promedio",
-      caption = "Datos: NASA FIRMS (MODIS_SP)"
+      caption = fuente
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
@@ -449,8 +458,10 @@ configurar_plotly <- function(w, titulo, subtitulo,
     )
 }
 
-# Serie temporal mensual interactiva (zoom/pan sobre los 25 años de registro).
-crear_serie_interactiva <- function(mensual) {
+# Serie temporal mensual interactiva (zoom/pan sobre todo el registro).
+crear_serie_interactiva <- function(mensual,
+                                    etiqueta_fuente = "MODIS (FIRMS)",
+                                    fuente = "Datos: NASA FIRMS (MODIS_SP)") {
   datos <- mensual |>
     dplyr::mutate(etiqueta = paste0(
       "Mes: ", MESES_ES[mes], " ", format(aniomes, "%Y"),
@@ -471,12 +482,15 @@ crear_serie_interactiva <- function(mensual) {
   plotly::ggplotly(p, tooltip = "text") |>
     configurar_plotly(
       "Detecciones mensuales de anomalías térmicas",
-      "Parque Nacional Palo Verde — MODIS (FIRMS)"
+      paste0("Parque Nacional Palo Verde — ", etiqueta_fuente),
+      fuente = fuente
     )
 }
 
 # Climatología mensual interactiva.
-crear_climatologia_interactiva <- function(mensual) {
+crear_climatologia_interactiva <- function(mensual,
+                                           etiqueta_fuente = "MODIS (FIRMS)",
+                                           fuente = "Datos: NASA FIRMS (MODIS_SP)") {
   clima <- mensual |>
     dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
     dplyr::mutate(
@@ -498,22 +512,28 @@ crear_climatologia_interactiva <- function(mensual) {
   plotly::ggplotly(p, tooltip = "text") |>
     configurar_plotly(
       "Climatología mensual de anomalías térmicas",
-      "Promedio de detecciones por mes calendario — PN Palo Verde, MODIS (FIRMS)"
+      paste0("Promedio de detecciones por mes calendario — PN Palo Verde, ",
+             etiqueta_fuente),
+      fuente = fuente
     )
 }
 
 # Guardan los gráficos interactivos como HTML autocontenido
 # (targets con format = "file", mismo patrón que mapa_leaflet_temporal).
-grafico_serie_html <- function(mensual, dest) {
-  w <- crear_serie_interactiva(mensual)
+grafico_serie_html <- function(mensual, dest,
+                               etiqueta_fuente = "MODIS (FIRMS)",
+                               fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+  w <- crear_serie_interactiva(mensual, etiqueta_fuente, fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(w, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
   dest
 }
 
-grafico_climatologia_html <- function(mensual, dest) {
-  w <- crear_climatologia_interactiva(mensual)
+grafico_climatologia_html <- function(mensual, dest,
+                                      etiqueta_fuente = "MODIS (FIRMS)",
+                                      fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+  w <- crear_climatologia_interactiva(mensual, etiqueta_fuente, fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(w, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)

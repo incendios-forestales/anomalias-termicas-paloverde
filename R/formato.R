@@ -22,3 +22,12 @@ formato_dt_es <- function(tabla, columnas, decimales = 1) {
   DT::formatRound(tabla, columns = columnas, digits = decimales,
                   mark = "", dec.mark = ",")
 }
+
+# Etiqueta legible para la confianza de una detección de FIRMS, que cambia de
+# dominio según el sensor: MODIS la reporta como porcentaje 0-100 y VIIRS como
+# categoría l/n/h. `leer_y_unir_csv()` deja la columna como carácter, así que
+# aquí se opera sobre texto y se cubren ambas representaciones.
+etiqueta_confianza <- function(x) {
+  categorias <- c(l = "baja", n = "nominal", h = "alta")
+  ifelse(x %in% names(categorias), categorias[x], paste0(x, " %"))
+}
