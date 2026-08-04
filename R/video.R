@@ -1,6 +1,8 @@
 # Video animado tipo cartel (estilo Milos Popovic): mapa oscuro con relieve
 # sombreado, detecciones de fuego con resplandor, píxeles de área quemada,
-# fecha animada y contadores acumulados. Un cuadro por mes, 2001-2026.
+# fecha animada y contadores acumulados. Un cuadro por mes, sobre el registro
+# completo de la fuente (etiquetas y rango de años parametrizados por fuente
+# vía etiquetas_video()).
 #
 # Decisiones metodológicas:
 #
@@ -261,6 +263,25 @@ datos_cuadros_video <- function(firms_mensual, area_quemada_mensual) {
     )
 }
 
+# Textos del video y del cartel que dependen de la fuente de datos. El título
+# deriva el rango de años de los datos (para MODIS reproduce el histórico
+# "2001 - 2026"); el resto intercambia las siglas del sensor y del producto
+# de área quemada en leyendas, créditos y rótulos de panel.
+etiquetas_video <- function(anios, etiqueta_fuente = "MODIS",
+                            id_fuente = "MODIS_SP", etiqueta_ba = "MCD64A1") {
+  list(
+    titulo = paste0("Anomalías Térmicas en el PN Palo Verde, ",
+                    min(anios), " - ", max(anios)),
+    deteccion = paste0("Detección de fuego activo (", etiqueta_fuente, ")"),
+    quema = paste0("Píxel de área quemada (", etiqueta_ba, ")"),
+    creditos = paste0("Datos: NASA FIRMS (", id_fuente, ") · NASA LP DAAC (",
+                      etiqueta_ba, ") · SINAC"),
+    panel_ha = paste0("hectáreas quemadas por mes (", etiqueta_ba, ")"),
+    panel_detecciones = paste0("detecciones de fuego por mes (",
+                               etiqueta_fuente, ")")
+  )
+}
+
 # Contador estilo cartel: entero con separador de miles de espacio. Se aparta
 # de num_es() a propósito: en un contador grande de cinco dígitos el bloque
 # sin separador es ilegible, y la coma decimal española prohíbe usar el punto
@@ -322,7 +343,7 @@ reticula_video <- function(lay) {
 # encabezado fijo, leyenda, escala, norte y créditos). Cada cuadro se
 # construye como `base + capas dinámicas`: sumar capas a un ggplot es una
 # copia barata y evita reconstruir esto ~300 veces.
-base_video <- function(relieve, parque) {
+base_video <- function(relieve, parque, etiquetas) {
   lay <- layout_video()
   ret <- reticula_video(lay)
 
@@ -364,7 +385,7 @@ base_video <- function(relieve, parque) {
     # lo que cambia por cuadro: acumulados grandes y, más abajo, el mes con
     # sus valores (ver cuadro_video()).
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(70),
-                      label = "Anomalías Térmicas en el PN Palo Verde, 2001 - 2026",
+                      label = etiquetas$titulo,
                       family = FUENTE_VIDEO, fontface = "bold", size = 6.4,
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(176),
@@ -379,14 +400,14 @@ base_video <- function(relieve, parque) {
     ggplot2::annotate("point", x = x0, y = y_desde_abajo(106),
                       color = COLOR_FUEGO_NUCLEO, size = 1.8) +
     ggplot2::annotate("text", x = x0 + lay$px(16), y = y_desde_abajo(106),
-                      label = "Detección de fuego activo (MODIS)",
+                      label = etiquetas$deteccion,
                       family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("tile", x = x0, y = y_desde_abajo(82),
                       width = lay$px(11), height = lay$px(11),
                       fill = COLOR_QUEMA_VIDEO, color = NA) +
     ggplot2::annotate("text", x = x0 + lay$px(16), y = y_desde_abajo(82),
-                      label = "Píxel de área quemada (MCD64A1)",
+                      label = etiquetas$quema,
                       family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     # Mini-leyenda de las coberturas principales del fondo (los rótulos usan
@@ -427,7 +448,7 @@ base_video <- function(relieve, parque) {
                       label = "N", family = FUENTE_VIDEO, size = 3,
                       hjust = 0.5, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("text", x = x0, y = y_desde_abajo(34),
-                      label = "Datos: NASA FIRMS (MODIS_SP) · NASA LP DAAC (MCD64A1) · SINAC",
+                      label = etiquetas$creditos,
                       family = FUENTE_VIDEO, size = 2.3,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("text", x = x0, y = y_desde_abajo(18),
@@ -587,15 +608,20 @@ panel_cartel <- function(datos, columna, color, titulo) {
 
 # Compone el cartel: encabezado y créditos del video (dibujados con grid) y
 # los dos paneles ggplot apilados. Target con format = "file".
-generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest) {
+generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest,
+                                   etiqueta_fuente = "MODIS",
+                                   id_fuente = "MODIS_SP",
+                                   etiqueta_ba = "MCD64A1") {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
+  etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
+                               etiqueta_ba)
   total_ha  <- sum(datos$hectareas)
   total_det <- sum(datos$detecciones)
 
   p_ha  <- panel_cartel(datos, "hectareas", COLOR_QUEMA_VIDEO,
-                        "hectáreas quemadas por mes (MCD64A1)")
+                        etiquetas$panel_ha)
   p_det <- panel_cartel(datos, "detecciones", COLOR_FUEGO_HALO,
-                        "detecciones de fuego por mes (MODIS)")
+                        etiquetas$panel_detecciones)
 
   # Coordenadas en píxeles: y positiva desde ARRIBA (encabezado) y negativa
   # desde ABAJO (créditos), misma convención visual que el video.
@@ -621,7 +647,7 @@ generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest) {
   grid::grid.newpage()
   grid::grid.rect(gp = grid::gpar(fill = COLOR_FONDO_VIDEO, col = NA))
 
-  texto("Anomalías Térmicas en el PN Palo Verde, 2001 - 2026",
+  texto(etiquetas$titulo,
         40, 75, 18.2, COLOR_TEXTO_VIDEO, negrita = TRUE)
   texto(contador_es(total_ha), 40, 150, 21.3, COLOR_QUEMA_VIDEO, negrita = TRUE)
   texto(esparcir("hectáreas quemadas acumuladas"), 40, 180, 7.7,
@@ -640,7 +666,7 @@ generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest) {
   imprimir(p_ha,  alto_encabezado + alto_panel / 2)
   imprimir(p_det, alto_encabezado + alto_panel * 1.5)
 
-  texto("Datos: NASA FIRMS (MODIS_SP) · NASA LP DAAC (MCD64A1) · SINAC",
+  texto(etiquetas$creditos,
         40, -40, 6.5, COLOR_TEXTO_SUAVE)
   texto("Estilo: Milos Popovic", 40, -22, 6.5, COLOR_TEXTO_SUAVE)
   grDevices::dev.off()
@@ -662,14 +688,21 @@ generar_video_anomalias <- function(firms_parque, area_quemada_parque,
                                     firms_mensual, area_quemada_mensual,
                                     parque, relieve, dest,
                                     fps = 10, congelar_s = 2.5,
-                                    anios = NULL, dir_cuadros = NULL) {
+                                    anios = NULL, dir_cuadros = NULL,
+                                    etiqueta_fuente = "MODIS",
+                                    id_fuente = "MODIS_SP",
+                                    etiqueta_ba = "MCD64A1") {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
+  # El título conserva el rango completo del registro aunque `anios` filtre
+  # los cuadros para pruebas.
+  etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
+                               etiqueta_ba)
   if (!is.null(anios)) datos <- datos[datos$anio %in% anios, ]
 
   if (is.null(dir_cuadros)) dir_cuadros <- tempfile("cuadros_video_")
   dir.create(dir_cuadros, recursive = TRUE, showWarnings = FALSE)
 
-  base <- base_video(relieve, parque)
+  base <- base_video(relieve, parque, etiquetas)
   cuadros <- vapply(seq_len(nrow(datos)), function(i) {
     if (i %% 50 == 0) message(glue::glue("[video] cuadro {i}/{nrow(datos)}"))
     capas <- capas_mes_video(firms_parque, area_quemada_parque,
