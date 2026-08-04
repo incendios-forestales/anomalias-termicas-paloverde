@@ -242,7 +242,14 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
 # La secuencia cubre la unión de ambas series mensuales: MCD64A1 se publica
 # con rezago distinto al de FIRMS y sus últimos meses no coinciden; recortar
 # a una sola serie dejaría píxeles quemados fuera del conteo final.
-datos_cuadros_video <- function(firms_mensual, area_quemada_mensual) {
+# `recortar_sin_ba` descarta la cola de meses sin producto de área quemada.
+# El video la necesita: sus dos contadores son acumulados sincronizados y
+# cumsum() sobre un NA arrastraría NA hasta el final; además correr el de
+# detecciones más allá de donde el de hectáreas puede seguirlo es justamente
+# la lectura falsa que se quiere evitar. El cartel, en cambio, conserva el eje
+# completo y marca la banda: se lee estático y con calma.
+datos_cuadros_video <- function(firms_mensual, area_quemada_mensual,
+                                recortar_sin_ba = FALSE) {
   meses <- seq(min(firms_mensual$aniomes, area_quemada_mensual$aniomes),
                max(firms_mensual$aniomes, area_quemada_mensual$aniomes),
                by = "month")
@@ -251,11 +258,15 @@ datos_cuadros_video <- function(firms_mensual, area_quemada_mensual) {
                      by = "aniomes") |>
     dplyr::left_join(dplyr::select(area_quemada_mensual, aniomes, hectareas),
                      by = "aniomes") |>
+    (\(d) if (recortar_sin_ba) d[cumsum(is.na(d$hectareas)) == 0, ] else d)() |>
     dplyr::mutate(
       detecciones = tidyr::replace_na(detecciones, 0L),
-      hectareas   = tidyr::replace_na(hectareas, 0),
+      sin_producto_ba = is.na(hectareas),
       detecciones_acum = cumsum(detecciones),
-      hectareas_acum   = cumsum(hectareas),
+      # El acumulado ignora los meses sin producto en lugar de arrastrar NA:
+      # es "lo quemado que se sabe hasta aquí", y el cartel rotula hasta qué
+      # mes llega ese dato.
+      hectareas_acum   = cumsum(tidyr::replace_na(hectareas, 0)),
       anio = as.integer(format(aniomes, "%Y")),
       etiqueta_fecha = paste(
         toupper(MESES_ES[as.integer(format(aniomes, "%m"))]), anio
@@ -571,8 +582,8 @@ cuadro_video <- function(base, capas, info_mes, dest_png) {
 # sobre el fondo oscuro (ΔE 27 protan, 3:1+); el naranja queda apenas sobre
 # la banda de luminosidad recomendada, desviación aceptada por coherencia
 # con el video y porque cada serie vive en su propio panel.
-panel_cartel <- function(datos, columna, color, titulo) {
-  imax <- which.max(datos[[columna]])
+panel_cartel <- function(datos, columna, color, titulo, banda = NULL) {
+  imax <- which.max(datos[[columna]])  # which.max ignora los NA
   temprano <- imax < nrow(datos) / 2
   etiqueta_max <- paste0(
     MESES_ES[as.integer(format(datos$aniomes[imax], "%m"))], " ",
@@ -580,6 +591,7 @@ panel_cartel <- function(datos, columna, color, titulo) {
     contador_es(datos[[columna]][imax])
   )
   ggplot2::ggplot(datos, ggplot2::aes(x = aniomes, y = .data[[columna]])) +
+    banda +
     ggplot2::geom_col(fill = color, width = 25) +
     ggplot2::annotate("text",
                       x = datos$aniomes[imax] + if (temprano) 300 else -300,
@@ -620,11 +632,11 @@ generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest,
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
   etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
                                etiqueta_ba)
-  total_ha  <- sum(datos$hectareas)
+  total_ha  <- sum(datos$hectareas, na.rm = TRUE)
   total_det <- sum(datos$detecciones)
 
   p_ha  <- panel_cartel(datos, "hectareas", COLOR_QUEMA_VIDEO,
-                        etiquetas$panel_ha)
+                        etiquetas$panel_ha, banda = capa_sin_producto_ba(datos))
   p_det <- panel_cartel(datos, "detecciones", COLOR_FUEGO_HALO,
                         etiquetas$panel_detecciones)
 
@@ -695,7 +707,8 @@ generar_video_anomalias <- function(firms_parque, area_quemada_parque,
                                     etiqueta_fuente, id_fuente, etiqueta_ba,
                                     fps = 10, congelar_s = 2.5,
                                     anios = NULL, dir_cuadros = NULL) {
-  datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
+  datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual,
+                               recortar_sin_ba = TRUE)
   # El título conserva el rango completo del registro aunque `anios` filtre
   # los cuadros para pruebas.
   etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,

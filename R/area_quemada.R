@@ -110,20 +110,38 @@ extraer_quemas <- function(paths_hdf, parque) {
     dplyr::select(fecha, anio, mes, aniomes, area_ha)
 }
 
-# Serie mensual de hectáreas quemadas, con meses en 0 completados (mismo
-# patrón que agregar_mensual). `rango_meses` extiende el eje temporal para
-# alinearlo con la serie de detecciones en los gráficos comparativos; los
+# Serie mensual de hectáreas quemadas. `rango_meses` extiende el eje temporal
+# para alinearlo con la serie de detecciones en los gráficos comparativos; los
 # meses con quemas fuera de ese rango no se descartan.
-agregar_mensual_quemas <- function(quemas, rango_meses = NULL) {
+#
+# CERO NO ES LO MISMO QUE SIN DATO. Hasta `hasta` —el último mes publicado del
+# producto de área quemada— un mes sin píxeles quemados es un cero verdadero:
+# el algoritmo corrió y no marcó nada. Después de esa fecha no hay producto
+# todavía, y rellenar con cero afirmaría que no se quemó nada cuando lo cierto
+# es que aún no se sabe. Esos meses quedan en NA.
+#
+# Importa cada vez más: el producto de área quemada se publica con uno o dos
+# meses de rezago, y desde que las series de detecciones incorporan su cola en
+# tiempo casi real el desfase llega a tres o cuatro meses. Con ceros, la
+# climatología promediaba esos meses vacíos y salía deflactada.
+#
+# `hasta` debe venir de la lista de granulos publicados, no del último mes con
+# píxeles quemados: un mes publicado sin fuego en el parque no aporta píxeles
+# y desplazaría la frontera hacia atrás.
+agregar_mensual_quemas <- function(quemas, rango_meses = NULL, hasta = NULL) {
   mensual <- quemas |>
     sf::st_drop_geometry() |>
     dplyr::summarise(hectareas = sum(area_ha), .by = aniomes)
   limites <- range(c(mensual$aniomes,
                      lubridate::floor_date(as.Date(rango_meses), "month")))
+  if (is.null(hasta)) hasta <- limites[2]
+  hasta <- lubridate::floor_date(as.Date(hasta), "month")
   data.frame(aniomes = seq(limites[1], limites[2], by = "month")) |>
     dplyr::left_join(mensual, by = "aniomes") |>
     dplyr::mutate(
-      hectareas = tidyr::replace_na(hectareas, 0),
+      hectareas = ifelse(aniomes <= hasta,
+                         tidyr::replace_na(hectareas, 0),
+                         NA_real_),
       anio = lubridate::year(aniomes),
       mes  = lubridate::month(aniomes)
     )
@@ -139,6 +157,23 @@ agregar_mensual_quemas <- function(quemas, rango_meses = NULL) {
 recortar_quemas_al_periodo <- function(quemas, mensual) {
   quemas[quemas$aniomes >= min(mensual$aniomes) &
            quemas$aniomes <= max(mensual$aniomes), ]
+}
+
+# Banda que marca el tramo posterior al último mes publicado del producto de
+# área quemada. Sin ella, geom_col simplemente omite los NA y el gráfico se
+# lee como si la superficie quemada hubiera caído a cero. Devuelve NULL si la
+# serie no tiene tramo sin producto.
+capa_sin_producto_ba <- function(mensual) {
+  faltantes <- mensual$aniomes[is.na(mensual$hectareas)]
+  if (length(faltantes) == 0) return(NULL)
+  list(
+    ggplot2::annotate("rect", xmin = min(faltantes) - 15,
+                      xmax = max(faltantes) + 15,
+                      ymin = -Inf, ymax = Inf, fill = "grey55", alpha = 0.22),
+    ggplot2::annotate("text", x = min(faltantes) - 25, y = Inf,
+                      label = "sin producto →", hjust = 1, vjust = 1.6,
+                      size = 2.7, color = "grey35")
+  )
 }
 
 # --- Visualizaciones (mismo precedente que cobertura.R: los gráficos del
@@ -203,6 +238,7 @@ crear_comparacion_series <- function(firms_mensual, quemas_mensual,
   p_quemas <- ggplot2::ggplot(datos_quemas,
                               ggplot2::aes(x = aniomes, y = hectareas,
                                            text = etiqueta)) +
+    capa_sin_producto_ba(datos_quemas) +
     ggplot2::geom_col(fill = COLOR_AREA_QUEMADA, width = 25) +
     ggplot2::scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
@@ -240,7 +276,7 @@ crear_climatologia_comparada <- function(firms_mensual, quemas_mensual,
                         "<br>Promedio: ", num_es(promedio), " detecciones")
     )
   clima_quemas <- quemas_mensual |>
-    dplyr::summarise(promedio = mean(hectareas), .by = mes) |>
+    dplyr::summarise(promedio = mean(hectareas, na.rm = TRUE), .by = mes) |>
     dplyr::mutate(
       nombre_mes = factor(MESES_ES[mes], levels = MESES_ES),
       etiqueta = paste0("Mes: ", nombre_mes,
@@ -277,6 +313,7 @@ crear_climatologia_comparada <- function(firms_mensual, quemas_mensual,
 grafico_area_quemada <- function(quemas_mensual, dest, etiqueta_ba, fuente) {
   p <- ggplot2::ggplot(quemas_mensual,
                        ggplot2::aes(x = aniomes, y = hectareas)) +
+    capa_sin_producto_ba(quemas_mensual) +
     ggplot2::geom_col(fill = COLOR_AREA_QUEMADA, width = 25) +
     ggplot2::scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
@@ -308,7 +345,7 @@ grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest,
       dplyr::summarise(valor = mean(detecciones), .by = mes) |>
       dplyr::mutate(serie = niveles[[1]]),
     quemas_mensual |>
-      dplyr::summarise(valor = mean(hectareas), .by = mes) |>
+      dplyr::summarise(valor = mean(hectareas, na.rm = TRUE), .by = mes) |>
       dplyr::mutate(serie = niveles[[2]])
   ) |>
     dplyr::mutate(
