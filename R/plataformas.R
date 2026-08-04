@@ -55,22 +55,28 @@ id_fuente_principal <- function(clave) {
 etiquetas_plataforma <- function(clave) {
   p <- plataforma(clave)
   id <- id_fuente_principal(clave)
+  # Los pies de fuente nombran TODAS las colecciones que alimentan la serie:
+  # desde que se empalma la cola en tiempo casi real, citar solo el
+  # procesamiento estándar dejaría sin acreditar los meses más recientes.
+  ids <- if (is.na(p$fuente_sp)) p$fuente_nrt else
+    paste(p$fuente_sp, "y", p$fuente_nrt)
   list(
     plataforma       = p$etiqueta,
     corta            = p$corta,
     id_fuente        = id,
+    ids_fuente       = ids,
     # Rótulo del sensor en subtítulos de figura y encabezados de tabla
     fuente_fig       = paste0(p$corta, " (FIRMS)"),
     etiqueta_ba      = p$ba_etiqueta,
     etiqueta_quemas  = paste0("Área quemada (", p$ba_etiqueta, ")"),
     # Pies de fuente, por combinación de insumos usada en cada producto
-    pie_firms        = paste0("Datos: NASA FIRMS (", id, ")"),
-    pie_animacion    = paste0("Datos: NASA FIRMS (", id,
+    pie_firms        = paste0("Datos: NASA FIRMS (", ids, ")"),
+    pie_animacion    = paste0("Datos: NASA FIRMS (", ids,
                               ") y SINAC. Fondo: ESA WorldCover 2021"),
-    pie_cobertura    = paste0("Datos: NASA FIRMS (", id,
+    pie_cobertura    = paste0("Datos: NASA FIRMS (", ids,
                               "), ESA WorldCover 2021 y SINAC"),
     pie_ba           = paste0("Datos: NASA LP DAAC (", p$ba_version, ")"),
-    pie_ambos        = paste0("Datos: NASA FIRMS (", id, ") y LP DAAC (",
+    pie_ambos        = paste0("Datos: NASA FIRMS (", ids, ") y LP DAAC (",
                               p$ba_creditos, ")"),
     pie_cobertura_ba = paste0("Datos: NASA LP DAAC (", p$ba_creditos,
                               "), ESA WorldCover 2021 y SINAC")

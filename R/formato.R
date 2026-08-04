@@ -27,6 +27,14 @@ formato_dt_es <- function(tabla, columnas, decimales = 1) {
 # dominio según el sensor: MODIS la reporta como porcentaje 0-100 y VIIRS como
 # categoría l/n/h. `leer_y_unir_csv()` deja la columna como carácter, así que
 # aquí se opera sobre texto y se cubren ambas representaciones.
+# Nivel de procesamiento en palabras. El dato provisional se marca como tal
+# en todo producto donde aparece: proviene del procesamiento en tiempo casi
+# real, cuya geolocalización y filtrado de falsas alarmas se refinan cuando
+# NASA lo reprocesa a estándar, de modo que puede cambiar retroactivamente.
+etiqueta_nivel <- function(x) {
+  ifelse(x == "SP", "estándar", "tiempo casi real (provisional)")
+}
+
 etiqueta_confianza <- function(x) {
   categorias <- c(l = "baja", n = "nominal", h = "alta")
   ifelse(x %in% names(categorias), categorias[x], paste0(x, " %"))

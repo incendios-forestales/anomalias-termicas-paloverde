@@ -1,5 +1,6 @@
 clase,detecciones,en_humedal,pct_en_humedal,fraccion_humedal_promedio,hectareas_quemadas,pct_quemado_en_humedal
-Pastizal,148,135,91.2,0.812,3977,95.7
-Bosque,49,22,44.9,0.127,1026,27.1
+Pastizal,236,221,93.6,0.847,3977,95.7
+Bosque,52,25,48.1,0.131,1026,27.1
+Manglar,4,4,100,0.311,192,100
 Cultivos,3,1,33.3,0.333,428,25
-Manglar,2,2,100,0.01,192,100
+Humedal herbáceo,1,1,100,1,0,NA
