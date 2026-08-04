@@ -1,0 +1,324 @@
+---
+title: "Anomalías térmicas en el Parque Nacional Palo Verde — VIIRS NOAA-20"
+subtitle: "Detecciones del sensor VIIRS a bordo de NOAA-20 (VIIRS_NOAA20_SP de NASA FIRMS)"
+author: "Organización Incendios Forestales"
+date: today
+lang: es
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "Contenido"
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: configuracion
+library(targets)
+almacen <- here::here("_targets")
+tar_source(here::here("R"))
+```
+
+## Introducción
+
+Este reporte presenta las anomalías térmicas (detecciones de fuego activo)
+registradas por el sensor **VIIRS** a bordo del satélite **NOAA-20** en el
+[Parque Nacional Palo Verde](https://www.sinac.go.cr/), Costa Rica. Es el
+tercero de una serie de reportes análogos, junto con los de
+[MODIS](../) (Terra y Aqua, desde 2001) y
+[VIIRS en Suomi-NPP](../viirs/) (desde 2012): misma metodología, mismos
+productos, distinta plataforma de observación.
+
+NOAA-20 lleva **el mismo instrumento** que Suomi-NPP —VIIRS, con píxel de
+375 m en las bandas de imagen— pero vuela media órbita por detrás, de modo que
+pasa sobre el parque unos cincuenta minutos después. No observa los mismos
+fuegos en los mismos instantes, sino que **añade oportunidades de
+observación**: un fuego encendido entre ambos pasos aparece en uno y no en el
+otro. Por eso sus detecciones se publican como serie propia y no se suman a
+las de Suomi-NPP; sumarlas produciría un salto artificial en 2018, cuando
+NOAA-20 entra en operación, que reflejaría el número de satélites en órbita y
+no el régimen de fuego.
+
+```{r}
+#| label: datos
+firms_parque <- tar_read(firms_parque_noaa20, store = almacen)
+firms_mensual <- tar_read(firms_mensual_noaa20, store = almacen)
+area_quemada_parque <- tar_read(area_quemada_parque_noaa20, store = almacen)
+area_quemada_mensual <- tar_read(area_quemada_mensual_noaa20, store = almacen)
+rango <- range(firms_parque$acq_date)
+```
+
+El período analizado va del **`r format(rango[1], "%d/%m/%Y")`** al
+**`r format(rango[2], "%d/%m/%Y")`**, con un total de
+**`r nrow(firms_parque)`** detecciones dentro del parque.
+
+### Una advertencia sobre el área quemada
+
+A diferencia de MODIS y Suomi-NPP, **NOAA-20 no tiene producto de área
+quemada**: el equivalente que le correspondería (`VJ164A1`) no ha sido
+publicado. El único producto de área quemada de la familia VIIRS es
+**VNP64A1**, derivado de Suomi-NPP.
+
+Este reporte lo usa de todas formas, recortado al período de NOAA-20 y
+**rotulado como «VNP64A1, S-NPP»** en cada figura, tabla y leyenda donde
+aparece. Es una decisión defendible porque el área quemada es una medición
+distinta de la de fuego activo —la superficie que quedó marcada, en píxeles de
+500 m— y no detecciones de otro sensor mezcladas con las de este. Pero
+conviene tenerlo presente al leer: **las hectáreas de este reporte no provienen
+de NOAA-20**, y cuando se comparan las dos series de un mismo gráfico se están
+comparando dos plataformas.
+
+## Mapa animado
+
+Detecciones mensuales de anomalías térmicas; el color indica la potencia
+radiativa del fuego (FRP).
+
+![](`r file.path("..", tar_read(anim_gif_noaa20, store = almacen))`)
+
+## Video resumen
+
+Resumen mensual en formato de video: detecciones de fuego activo (VIIRS
+NOAA-20) con su estela de los meses recientes y píxeles de área quemada
+(VNP64A1, de Suomi-NPP), sobre el relieve del parque teñido por la cobertura
+de la tierra (WorldCover 2021).
+
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias_noaa20, store = almacen))`"></video>
+
+El cartel estático resume las dos series mensuales del video.
+
+![](`r file.path("..", tar_read(cartel_resumen_noaa20, store = almacen))`){width=540}
+
+## Mapa interactivo
+
+Use el deslizador temporal para explorar las detecciones a través del tiempo;
+cada punto muestra sus atributos al pulsarlo, incluida la cobertura de la
+tierra dominante en su footprint. El botón ⛶ de la esquina superior izquierda
+abre el mapa en pantalla completa. Como en todos los productos VIIRS, la
+confianza de cada detección es categórica —baja, nominal o alta— y no un
+porcentaje como en MODIS.
+
+```{r}
+#| label: mapa-interactivo
+parque <- tar_read(parque, store = almacen)
+cobertura_mapa <- tar_read(cobertura_noaa20, store = almacen)
+worldcover <- tar_read(archivos_worldcover, store = almacen)
+bbox <- tar_read(bbox_descarga, store = almacen)
+humedales <- tar_read(humedales, store = almacen)
+bosque <- tar_read(bosque, store = almacen)
+crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
+                    humedales, bosque, quemas = area_quemada_parque,
+                    etiqueta_quemas = "Área quemada (VNP64A1, S-NPP)")
+```
+
+## Estadísticas
+
+### Serie temporal mensual
+
+Detecciones de fuego activo (arriba) y hectáreas quemadas (abajo), con el eje
+temporal compartido. Las dos series son complementarias y **no sumables**, y
+en este reporte provienen además de plataformas distintas.
+
+```{r}
+#| label: serie-interactiva
+crear_comparacion_series(firms_mensual, area_quemada_mensual,
+                         etiqueta_ba = "VNP64A1, S-NPP",
+                         fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP) y LP DAAC (VNP64A1, Suomi-NPP)")
+```
+
+### Climatología mensual (estacionalidad)
+
+Promedios por mes calendario de ambas magnitudes.
+
+```{r}
+#| label: climatologia-interactiva
+crear_climatologia_comparada(firms_mensual, area_quemada_mensual,
+                             etiqueta_ba = "VNP64A1, S-NPP",
+                             fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP) y LP DAAC (VNP64A1, Suomi-NPP)")
+```
+
+### Resumen anual
+
+```{r}
+#| label: tabla-resumen
+crear_tabla_resumen(firms_parque, area_quemada_parque,
+                    etiqueta_fuente = "VIIRS NOAA-20 (FIRMS)",
+                    etiqueta_ba = "VNP64A1, S-NPP")
+```
+
+### El episodio de mayo de 2026
+
+```{r}
+#| label: mayo-2026
+det_mayo <- sum(format(firms_parque$acq_date, "%Y-%m") == "2026-05")
+```
+
+El mes más activo de todo el registro de NOAA-20 es **mayo de 2026**, con
+**`r det_mayo`** detecciones. Conviene subrayar que **este reporte es el único
+de los tres que cubre ese mes**: el procesamiento estándar de Suomi-NPP
+termina el 27 de abril de 2026 y el de MODIS el 30 de abril, así que ninguno
+de los otros dos productos alcanza todavía ese episodio.
+
+Esto tiene una consecuencia práctica al comparar reportes. En el período
+común, NOAA-20 registra casi el doble de detecciones que Suomi-NPP, lo que
+podría leerse como una diferencia de sensibilidad entre plataformas. No lo es:
+**descontando 2026, la relación baja a aproximadamente 1,2 a 1**, que es lo
+esperable de un mismo instrumento observando desde dos órbitas con distinta
+hora de paso. Casi toda la diferencia aparente proviene de que el registro de
+NOAA-20 llega un mes más lejos y ese mes concentró un episodio grande.
+
+## Cobertura de la tierra
+
+Cada detección corresponde a un píxel de 375 m en el nadir (mayor fuera de
+él), por lo que la cobertura se caracteriza sobre el *footprint* completo de
+la detección —una elipse con las dimensiones reales del píxel, columnas
+`scan` × `track`— y no sobre el punto exacto.
+
+**Limitación**: WorldCover describe la cobertura de 2021, mientras que el
+registro abarca `r format(rango[1], "%Y")`–`r format(rango[2], "%Y")`.
+
+```{r}
+#| label: cobertura-interactiva
+cobertura <- tar_read(cobertura_noaa20, store = almacen)
+humedales_detecciones <- tar_read(humedales_detecciones_noaa20, store = almacen)
+crear_grafico_cobertura(cobertura, humedales_detecciones, interactivo = TRUE,
+                        fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP), ESA WorldCover 2021 y SINAC")
+```
+
+El gráfico gemelo muestra las **hectáreas quemadas** según la clase dominante
+del píxel de VNP64A1 (Suomi-NPP).
+
+```{r}
+#| label: cobertura-quemas-interactiva
+cobertura_quemas <- tar_read(cobertura_quemas_noaa20, store = almacen)
+humedales_quemas <- tar_read(humedales_quemas_noaa20, store = almacen)
+crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                               interactivo = TRUE,
+                               fuente = "Datos: NASA LP DAAC (VNP64A1, Suomi-NPP), ESA WorldCover 2021 y SINAC")
+```
+
+### Contraste con el Registro Nacional de Humedales
+
+WorldCover clasifica como *pastizal* buena parte de la marisma del parque, así
+que la clase más frecuente merece una advertencia.
+
+```{r}
+#| label: tabla-contraste
+crear_tabla_contraste(cobertura, humedales_detecciones,
+                      cobertura_quemas, humedales_quemas)
+```
+
+```{r}
+#| label: hallazgo-humedales
+hallazgo <- resumen_hallazgo_humedales(cobertura, humedales_detecciones)
+```
+
+El resultado es aún más marcado que en los otros dos reportes: el
+**`r hallazgo$pct_en_humedal` %** de las `r hallazgo$n` detecciones cuyo
+footprint domina el *pastizal* caen dentro de un humedal registrado, y en
+promedio el **`r hallazgo$pct_footprint` %** del footprint está cubierto por
+humedal. Tres plataformas independientes coinciden: **las quemas del
+«pastizal» ocurren en la marisma, no en potreros.**
+
+**Advertencia sobre la clase de humedal**: el registro asigna una sola clase
+por polígono, y *`r hallazgo$poligono_nombre`* (4 453 ha, clasificado como
+*Manglar*) cubre casi todo el sector estuarino, por lo que concentra
+`r hallazgo$poligono_n` detecciones. Eso **no** significa que esas quemas
+ocurran en manglar: dentro de ese polígono el manglar cubre apenas el 11,6 %
+de la superficie según WorldCover y el 4,1 % según la Cobertura Forestal 2023
+del SINAC.
+
+## ¿El fuego bordea el bosque o lo rodea?
+
+```{r}
+#| label: contexto-paisaje
+borde <- tar_read(borde_bosque_noaa20, store = almacen)
+paisaje <- tar_read(paisaje_parque, store = almacen)
+ayudantes <- ayudantes_borde(borde, paisaje, cobertura, cobertura_quemas)
+pct_paisaje <- ayudantes$pct_paisaje
+pct_dominante <- ayudantes$pct_dominante
+pct_ha_dominante <- ayudantes$pct_ha_dominante
+pct_situacion <- ayudantes$pct_situacion
+```
+
+El parque es **`r pct_paisaje("Bosque")` %** bosque y
+**`r pct_paisaje("Pastizal")` %** pastizal según WorldCover, pero solo el
+**`r pct_dominante("Bosque")` %** de las detecciones tiene bosque como clase
+dominante de su footprint, frente al **`r pct_dominante("Pastizal")` %** con
+pastizal.
+
+Para separar el "efecto de borde" de una ilusión geométrica se compara cada
+detección contra un modelo nulo: **`r borde$n_aleatorios`** puntos aleatorios
+dentro del parque, calculando la fracción de bosque en **`r borde$radio_m` m**
+a la redonda.
+
+```{r}
+#| label: tabla-borde
+crear_tabla_borde(borde)
+```
+
+El resultado es el más extremo de los tres reportes. Las detecciones ocurren
+en terreno abierto **`r pct_situacion(1, "pct_detecciones")` %** de las veces
+contra un `r pct_situacion(1, "pct_aleatorio")` % esperado por azar, y el
+interior de bosque prácticamente desaparece:
+**`r pct_situacion(3, "pct_detecciones")` %** contra
+`r pct_situacion(3, "pct_aleatorio")` % esperado. La mediana de bosque
+circundante es **`r num_es(borde$mediana_detecciones, 3)`** en las detecciones
+y `r num_es(borde$mediana_aleatorios, 2)` en los puntos aleatorios.
+
+La categoría de borde tampoco está sobrerrepresentada —
+**`r pct_situacion(2, "pct_detecciones")` %** contra
+`r pct_situacion(2, "pct_aleatorio")` % esperado; aquí la diferencia sí es
+estadísticamente significativa (*p* = `r num_es(borde$p_borde, 3)`), pero en
+el sentido contrario al que supondría un efecto de borde: el fuego aparece en
+el borde **menos** de lo que cabría esperar por azar. La conclusión de los
+otros dos reportes se sostiene y se refuerza: **el fuego no bordea el bosque,
+lo rodea.**
+
+### Por qué no debe leerse como un efecto de la resolución
+
+Es tentador ordenar los tres reportes en una escala y concluir que a mayor
+resolución, menos fuego de interior: MODIS registra 16,4 % de detecciones en
+interior de bosque, Suomi-NPP 7,9 % y NOAA-20
+`r pct_situacion(3, "pct_detecciones")` %. La primera comparación sí es un
+efecto de resolución —el footprint de MODIS supera 1 km² e invade el bosque
+cuando el fuego arde en la marisma contigua—, pero **la segunda no puede
+serlo**: Suomi-NPP y NOAA-20 llevan el mismo instrumento con el mismo píxel de
+375 m.
+
+La diferencia entre ambas plataformas responde a que observan episodios
+distintos, y en el caso de NOAA-20 pesa mucho el de mayo de 2026, que aporta
+casi la mitad de sus detecciones y ocurrió en terreno abierto. Es un
+recordatorio útil: con registros de unos pocos cientos de detecciones, un solo
+episodio grande mueve los porcentajes de manera apreciable.
+
+**Limitación**: el modelo nulo supone que cualquier punto del parque tiene la
+misma probabilidad de arder, lo que ignora factores como la accesibilidad o la
+cercanía a caminos y linderos.
+
+## Fuentes de datos
+
+- **NASA FIRMS** — Fire Information for Resource Management System, producto
+  VIIRS_NOAA20_SP (VIIRS 375 m, NOAA-20/JPSS-1, procesamiento estándar).
+  <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: Schroeder, W., y
+  Giglio, L. (2018). *VIIRS/JPSS1 Thermal Anomalies/Fire 6-Min L2 Swath 375m*,
+  DOI: 10.5067/VIIRS/VJ114IMG.002.
+- **NASA LP DAAC** — producto de área quemada VNP64A1 v002 (VIIRS/NPP,
+  mensual, 500 m), **derivado de Suomi-NPP**: no existe equivalente de
+  NOAA-20. Giglio, L., y Justice, C. (2021). *VNP64A1 VIIRS/NPP Burned Area
+  Monthly L4 Global 500m SIN Grid V002*, DOI: 10.5067/VIIRS/VNP64A1.002.
+- **SINAC** — Capas de áreas silvestres protegidas (1:5000, 2019), Registro
+  Nacional de Humedales (2016–2018) y Cobertura Forestal 2023, de su servicio
+  WFS. <https://geos1pne.sirefor.go.cr/wfs>.
+- **ESA WorldCover** — cobertura de la tierra 2021 a 10 m, v200.
+  <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
+  *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
+
+Los reportes análogos: [MODIS](../) (desde 2001) y
+[VIIRS en Suomi-NPP](../viirs/) (desde 2012).
+
+El código de este análisis está disponible en
+<https://github.com/incendios-forestales/anomalias-termicas-paloverde>.

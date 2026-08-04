@@ -593,5 +593,16 @@ list(
     dir.create("viirs", showWarnings = FALSE)
     file.copy("analysis/viirs.html", "viirs/index.html", overwrite = TRUE)
     "viirs/index.html"
+  }, format = "file"),
+
+  # --- Reporte NOAA-20 → noaa20/index.html --------------------------------
+  tar_quarto(reporte_noaa20, "analysis/noaa20.qmd",
+             extra_files = list.files("R", pattern = "[.][Rr]$",
+                                      full.names = TRUE)),
+  tar_target(pagina_noaa20, {
+    reporte_noaa20  # dependencia explícita del render
+    dir.create("noaa20", showWarnings = FALSE)
+    file.copy("analysis/noaa20.html", "noaa20/index.html", overwrite = TRUE)
+    "noaa20/index.html"
   }, format = "file")
 )

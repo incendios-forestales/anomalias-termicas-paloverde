@@ -33,12 +33,14 @@ sistema [FIRMS](https://firms.modaps.eosdis.nasa.gov/) de la NASA, y el
 límite del parque del
 [WFS del SINAC](https://geos1pne.sirefor.go.cr/wfs).
 
-Existe un [reporte análogo basado en el sensor VIIRS](viirs/) (Suomi-NPP,
-375 m, desde 2012), con los mismos productos y metodología. Las series de
-ambos sensores se publican por separado y no deben sumarse: VIIRS detecta
-muchos más fuegos que MODIS sobre el mismo territorio, así que unirlas
-produciría un salto artificial en 2012 que reflejaría el cambio de
-instrumento y no el régimen de fuego.
+Existen dos reportes análogos, con los mismos productos y metodología, basados
+en el sensor VIIRS (375 m): uno en la plataforma
+[Suomi-NPP](viirs/) (desde 2012) y otro en
+[NOAA-20](noaa20/) (desde 2018). Las series de cada plataforma se publican por
+separado y no deben sumarse: VIIRS detecta muchos más fuegos que MODIS sobre
+el mismo territorio, y dos satélites observan más veces que uno, así que
+unirlas produciría saltos artificiales —en 2012 y en 2018— que reflejarían el
+instrumental disponible y no el régimen de fuego.
 
 ```{r}
 #| label: datos
