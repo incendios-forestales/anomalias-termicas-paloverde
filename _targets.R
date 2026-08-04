@@ -1,9 +1,22 @@
-# Pipeline de anomalías térmicas (FIRMS MODIS_SP) y área quemada (MCD64A1)
-# en el PN Palo Verde.
+# Pipeline de anomalías térmicas y área quemada en el PN Palo Verde.
+#
+# Cuatro plataformas satelitales HERMANAS —MODIS, VIIRS S-NPP, VIIRS NOAA-20 y
+# VIIRS NOAA-21— con juegos de productos equivalentes e independientes. Sus
+# detecciones NUNCA se suman: cada sensor y cada plataforma observa con
+# resolución y hora de paso distintas, así que una serie combinada mostraría
+# saltos que reflejan el instrumental disponible y no el régimen de fuego.
 #
 # Ejecución:      targets::tar_make()
 # Grafo:          targets::tar_visnetwork()
 # Estado:         targets::tar_outdated()
+# Targets:        targets::tar_manifest(fields = "name")
+#
+# CÓMO LEER ESTE ARCHIVO
+# Las cuatro cadenas se generan con tarchetypes::tar_map a partir de
+# PLATAFORMAS (R/plataformas.R): cada target del bloque `tar_map` existe
+# cuatro veces, con el sufijo de la clave de plataforma (_modis, _viirs,
+# _noaa20, _noaa21). Es decir, `firms_parque` no existe como tal; existen
+# `firms_parque_modis`, `firms_parque_viirs`, etc.
 #
 # La descarga es reanudable: cada fragmento de fechas es una rama dinámica
 # respaldada por un CSV en data/raw/firms/; si la ejecución se interrumpe,
@@ -24,6 +37,15 @@ tar_option_set(
   format = "rds"
 )
 
+# Valores del map. `quemas_origen` apunta al target del PRODUCTO de área
+# quemada que le corresponde a cada plataforma: MODIS y S-NPP tienen el suyo;
+# NOAA-20 y NOAA-21 toman el de S-NPP porque no existe uno propio.
+plataformas_pipeline <- dplyr::mutate(
+  PLATAFORMAS[, c("clave", "etiqueta", "ba_producto")],
+  quemas_origen = rlang::syms(paste0("quemas_", tolower(ba_producto)))
+)
+plataformas_pipeline$ba_producto <- NULL
+
 list(
   # --- Parámetros del pipeline (editar aquí) -------------------------------
   # El rango se recorta automáticamente al disponible en FIRMS, por lo que
@@ -31,49 +53,16 @@ list(
   tar_target(fecha_inicio, as.Date("2001-01-01")),
   tar_target(fecha_fin,    as.Date("2100-01-01")),
 
-  # --- Rótulos de cada plataforma ------------------------------------------
-  # Todo texto visible (subtítulos, pies de fuente, nombres de capa) se deriva
-  # de PLATAFORMAS; las funciones de R/ ya no tienen rótulos por defecto, así
-  # que es imposible generar un producto con la etiqueta de otra plataforma
-  # por omisión. Ver R/plataformas.R.
-  tar_target(etiquetas_modis,  etiquetas_plataforma("modis")),
-  tar_target(etiquetas_viirs,  etiquetas_plataforma("viirs")),
-  tar_target(etiquetas_noaa20, etiquetas_plataforma("noaa20")),
-
-  # --- Polígono del parque (WFS del SINAC) ---------------------------------
+  # --- Contexto compartido por las cuatro plataformas ----------------------
+  # Nada de esto depende del sensor: el polígono del parque, las capas
+  # nacionales, la cobertura de la tierra y el relieve del video.
   tar_target(archivo_parque, descargar_parque_wfs("data/raw/wfs/palo_verde.gpkg"),
              format = "file"),
   tar_target(parque, procesar_parque(archivo_parque)),
   tar_target(bbox_descarga, bbox_con_buffer(parque)),
-
-  # --- Rangos, fragmentos y descarga ---------------------------------------
-  # Cada plataforma se sirve de su procesamiento estándar y, a continuación,
-  # de la cola en tiempo casi real (ver rangos_plataforma()). Las dos ventanas
-  # no se solapan por construcción y el traslape se resuelve además por fecha
-  # al leer, para sobrevivir a fragmentos NRT que queden obsoletos cuando el
-  # estándar avance.
-  tar_target(rangos_modis, rangos_plataforma("modis", fecha_inicio, fecha_fin),
-             cue = tar_cue(mode = "always")),
-  tar_target(fragmentos, construir_fragmentos_multi(rangos_modis),
-             iteration = "group"),
-  tar_target(
-    csv_fragmentos,
-    descargar_firms_fragmento(fragmentos, bbox_descarga),
-    pattern = map(fragmentos),
-    format = "file"
-  ),
-  tar_target(firms_crudo,   leer_y_unir_csv(csv_fragmentos, rangos_modis)),
-  tar_target(firms_puntos,  a_sf_puntos(firms_crudo)),
-  tar_target(firms_parque,  recortar_al_parque(firms_puntos, parque)),
-  tar_target(firms_mensual, agregar_mensual(firms_parque, rangos_modis)),
-
-  # --- Cobertura de la tierra (ESA WorldCover 2021) ------------------------
+  tar_target(bbox_parque, sf::st_bbox(parque)),
   tar_target(archivos_worldcover, descargar_worldcover(bbox_descarga),
              format = "file"),
-  tar_target(cobertura, extraer_cobertura(firms_parque, archivos_worldcover)),
-
-  # --- Capas nacionales del SINAC: humedales y cobertura forestal ----------
-  tar_target(bbox_parque, sf::st_bbox(parque)),
   tar_target(archivo_humedales,
              descargar_capa_wfs(WFS_CAPA_HUMEDALES, bbox_parque,
                                 "data/raw/wfs/humedales.gpkg"),
@@ -84,530 +73,234 @@ list(
              format = "file"),
   tar_target(humedales, sf::st_read(archivo_humedales, quiet = TRUE)),
   tar_target(bosque, sf::st_read(archivo_bosque, quiet = TRUE)),
-  tar_target(humedales_detecciones, cruzar_con_humedales(firms_parque, humedales)),
-
-  # --- Fuente VIIRS S-NPP: cadena paralela a la de MODIS -------------------
-  # Genera productos independientes: las detecciones de sensores distintos
-  # NUNCA se suman (375 m de VIIRS detecta muchos más fuegos que 1 km de
-  # MODIS). La rejilla de fragmentos es común (ORIGEN_GRILLA) y clamp_rango()
-  # recorta al registro VIIRS (desde 2012-01-20). Si se agrega una tercera
-  # fuente, migrar estas cadenas a tarchetypes::tar_map.
-  tar_target(rangos_viirs,
-             rangos_plataforma("viirs", fecha_inicio, fecha_fin),
-             cue = tar_cue(mode = "always")),
-  tar_target(fragmentos_viirs, construir_fragmentos_multi(rangos_viirs),
-             iteration = "group"),
-  tar_target(
-    csv_fragmentos_viirs,
-    descargar_firms_fragmento(fragmentos_viirs, bbox_descarga),
-    pattern = map(fragmentos_viirs),
-    format = "file"
-  ),
-  tar_target(firms_crudo_viirs,   leer_y_unir_csv(csv_fragmentos_viirs, rangos_viirs)),
-  tar_target(firms_puntos_viirs,  a_sf_puntos(firms_crudo_viirs)),
-  tar_target(firms_parque_viirs,  recortar_al_parque(firms_puntos_viirs, parque)),
-  tar_target(firms_mensual_viirs, agregar_mensual(firms_parque_viirs, rangos_viirs)),
-  tar_target(cobertura_viirs,
-             extraer_cobertura(firms_parque_viirs, archivos_worldcover)),
-  tar_target(humedales_detecciones_viirs,
-             cruzar_con_humedales(firms_parque_viirs, humedales)),
-
-  # Área quemada VIIRS (VNP64A1 v002): heredero de MCD64A1 derivado de
-  # S-NPP; misma tesela, formato y lectura, registro desde 2012-03. Se
-  # empareja con las detecciones VIIRS (nunca se mezclan productos de
-  # sensores distintos en un mismo juego de salidas).
-  tar_target(granulos_ba_viirs,
-             cmr_granulos_mcd64a1(fecha_inicio, fecha_fin,
-                                  short_name = VNP64A1_SHORT_NAME,
-                                  version = VNP64A1_VERSION),
-             cue = tar_cue(mode = "always"), iteration = "group"),
-  tar_target(hdf_ba_viirs,
-             descargar_granulo_mcd64a1(granulos_ba_viirs,
-                                       dir = "data/raw/vnp64a1"),
-             pattern = map(granulos_ba_viirs), format = "file"),
-  tar_target(area_quemada_parque_viirs, extraer_quemas(hdf_ba_viirs, parque)),
-  tar_target(area_quemada_mensual_viirs,
-             agregar_mensual_quemas(area_quemada_parque_viirs,
-                                    rango_meses = range(firms_mensual_viirs$aniomes))),
-  tar_target(cobertura_quemas_viirs,
-             extraer_cobertura_quemas(area_quemada_parque_viirs,
-                                      archivos_worldcover)),
-  tar_target(humedales_quemas_viirs,
-             cruzar_quemas_con_humedales(area_quemada_parque_viirs, humedales)),
-  tar_target(borde_bosque_viirs,
-             contexto_borde(firms_parque_viirs, parque, archivos_worldcover,
-                            bbox_descarga, quemas = area_quemada_parque_viirs)),
-
-  # --- Fuente VIIRS NOAA-20: tercera cadena, también independiente ---------
-  # Mismo instrumento que S-NPP pero otra plataforma, con media órbita de
-  # separación: sus detecciones son observaciones adicionales, no las mismas,
-  # y por eso tampoco se suman a las de S-NPP (lo harían aparecer como un
-  # salto en 2018). Registro desde 2018-04.
-  #
-  # No existe producto de área quemada de NOAA-20 (VJ164A1 no está publicado;
-  # verificado en CMR el 2026-08-04), así que estos productos se acompañan del
-  # ÚNICO producto de área quemada VIIRS, VNP64A1 de S-NPP, recortado a la
-  # ventana de NOAA-20 y rotulado como tal en todas las salidas. Es una
-  # medición distinta (superficie marcada a 500 m), no detecciones de otro
-  # sensor mezcladas.
-  tar_target(rangos_noaa20,
-             rangos_plataforma("noaa20", fecha_inicio, fecha_fin),
-             cue = tar_cue(mode = "always")),
-  tar_target(fragmentos_noaa20, construir_fragmentos_multi(rangos_noaa20),
-             iteration = "group"),
-  tar_target(
-    csv_fragmentos_noaa20,
-    descargar_firms_fragmento(fragmentos_noaa20, bbox_descarga),
-    pattern = map(fragmentos_noaa20),
-    format = "file"
-  ),
-  tar_target(firms_crudo_noaa20,   leer_y_unir_csv(csv_fragmentos_noaa20, rangos_noaa20)),
-  tar_target(firms_puntos_noaa20,  a_sf_puntos(firms_crudo_noaa20)),
-  tar_target(firms_parque_noaa20,  recortar_al_parque(firms_puntos_noaa20, parque)),
-  tar_target(firms_mensual_noaa20, agregar_mensual(firms_parque_noaa20, rangos_noaa20)),
-  tar_target(cobertura_noaa20,
-             extraer_cobertura(firms_parque_noaa20, archivos_worldcover)),
-  tar_target(humedales_detecciones_noaa20,
-             cruzar_con_humedales(firms_parque_noaa20, humedales)),
-  # Área quemada de S-NPP recortada a la ventana de NOAA-20: reutiliza los
-  # granulos ya descargados (no hay descarga nueva).
-  tar_target(area_quemada_parque_noaa20,
-             recortar_quemas_al_periodo(area_quemada_parque_viirs,
-                                        firms_mensual_noaa20)),
-  tar_target(area_quemada_mensual_noaa20,
-             agregar_mensual_quemas(area_quemada_parque_noaa20,
-                                    rango_meses = range(firms_mensual_noaa20$aniomes))),
-  tar_target(cobertura_quemas_noaa20,
-             extraer_cobertura_quemas(area_quemada_parque_noaa20,
-                                      archivos_worldcover)),
-  tar_target(humedales_quemas_noaa20,
-             cruzar_quemas_con_humedales(area_quemada_parque_noaa20, humedales)),
-  tar_target(borde_bosque_noaa20,
-             contexto_borde(firms_parque_noaa20, parque, archivos_worldcover,
-                            bbox_descarga, quemas = area_quemada_parque_noaa20)),
-
-  # --- Área quemada (MCD64A1 v6.1, LP DAAC vía Earthdata) ------------------
-  # FIRMS no entrega BA_MODIS como datos (su API de área responde vacío);
-  # se usa el producto original. Ver cabecera de R/descarga_mcd64a1.R.
-  # La lista de granulos se refresca en cada corrida (cue always, como
-  # rango_disponible); la clave de rama es el mes (aniomes), estable ante
-  # meses nuevos y sensible a granulos reprocesados.
-  tar_target(granulos_ba, cmr_granulos_mcd64a1(fecha_inicio, fecha_fin),
-             cue = tar_cue(mode = "always"), iteration = "group"),
-  tar_target(hdf_ba, descargar_granulo_mcd64a1(granulos_ba),
-             pattern = map(granulos_ba), format = "file"),
-  tar_target(area_quemada_parque, extraer_quemas(hdf_ba, parque)),
-  tar_target(area_quemada_mensual,
-             agregar_mensual_quemas(area_quemada_parque,
-                                    rango_meses = range(firms_mensual$aniomes))),
-  # Cobertura y humedales sobre los píxeles quemados (análogos de `cobertura`
-  # y `humedales_detecciones`; el píxel de 500 m ya es el footprint).
-  tar_target(cobertura_quemas,
-             extraer_cobertura_quemas(area_quemada_parque, archivos_worldcover)),
-  tar_target(humedales_quemas,
-             cruzar_quemas_con_humedales(area_quemada_parque, humedales)),
-
-  # --- Contexto paisajístico: ¿borde del bosque o terreno abierto? ---------
   tar_target(paisaje_parque,
              composicion_paisaje(parque, archivos_worldcover, bbox_descarga)),
-  tar_target(borde_bosque,
-             contexto_borde(firms_parque, parque, archivos_worldcover,
-                            bbox_descarga, quemas = area_quemada_parque)),
-
-  # --- Video estilo cartel (relieve Terrarium + render cuadro a cuadro) ----
-  # relieve_video es un target propio para que ajustar colores o layout del
-  # video no re-descargue ni re-proyecte el DEM.
   tar_target(archivos_dem, descargar_dem_terrarium(bbox_descarga),
              format = "file"),
   tar_target(relieve_video, fondo_relieve_video(archivos_dem, parque,
                                                 bbox_descarga,
                                                 archivos_worldcover)),
-  # --- Salidas de la plataforma MODIS ---------------------------------------
-  # Los tres bloques de salidas son idénticos salvo el sufijo del target, el
-  # subdirectorio y la plataforma de la que se derivan los rótulos: ninguna
-  # función lleva ya rótulos por defecto, así que toda etiqueta visible sale
-  # de PLATAFORMAS (ver R/plataformas.R).
-  tar_target(cartel_resumen,
-             generar_cartel_resumen(firms_mensual, area_quemada_mensual,
-                                    "outputs/figs/cartel_resumen.png",
-                                    etiquetas_modis$corta, etiquetas_modis$ids_fuente,
-                                    etiquetas_modis$etiqueta_ba),
-             format = "file"),
-  tar_target(video_anomalias,
-             generar_video_anomalias(firms_parque, area_quemada_parque,
-                                     firms_mensual, area_quemada_mensual,
-                                     parque, relieve_video,
-                                     "outputs/figs/video_anomalias_termicas.mp4",
-                                     etiquetas_modis$corta, etiquetas_modis$ids_fuente,
-                                     etiquetas_modis$etiqueta_ba, fps = 5),
-             format = "file"),
-  tar_target(anim_gif,
-             animar_detecciones(firms_parque, parque, firms_mensual,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/animacion_mensual.gif",
-                                etiquetas_modis$fuente_fig, etiquetas_modis$pie_animacion),
-             format = "file"),
-  tar_target(anim_mp4,
-             animar_detecciones(firms_parque, parque, firms_mensual,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/animacion_mensual.mp4",
-                                etiquetas_modis$fuente_fig, etiquetas_modis$pie_animacion),
-             format = "file"),
-  tar_target(mapa_html,
-             mapa_leaflet_temporal(firms_parque, parque, cobertura,
-                                   archivos_worldcover, bbox_descarga,
-                                   humedales, bosque,
-                                   "outputs/maps/mapa_temporal.html",
-                                   etiquetas_modis$etiqueta_quemas,
-                                   quemas = area_quemada_parque),
-             format = "file"),
-  tar_target(fig_serie,
-             grafico_serie_temporal(firms_mensual,
-                                    "outputs/figs/serie_mensual.png",
-                                    etiquetas_modis$fuente_fig, etiquetas_modis$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia,
-             grafico_climatologia(firms_mensual,
-                                  "outputs/figs/climatologia_mensual.png",
-                                  etiquetas_modis$fuente_fig, etiquetas_modis$pie_firms),
-             format = "file"),
-  tar_target(fig_serie_html,
-             grafico_serie_html(firms_mensual,
-                                "outputs/figs/serie_mensual.html",
-                                etiquetas_modis$fuente_fig, etiquetas_modis$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia_html,
-             grafico_climatologia_html(firms_mensual,
-                                       "outputs/figs/climatologia_mensual.html",
-                                       etiquetas_modis$fuente_fig, etiquetas_modis$pie_firms),
-             format = "file"),
-  tar_target(fig_area_quemada,
-             grafico_area_quemada(area_quemada_mensual,
-                                  "outputs/figs/area_quemada_mensual.png",
-                                  etiquetas_modis$etiqueta_ba, etiquetas_modis$pie_ba),
-             format = "file"),
-  tar_target(fig_comparacion,
-             grafico_comparacion(firms_mensual, area_quemada_mensual,
-                                 "outputs/figs/detecciones_vs_area_quemada.png",
-                                 etiquetas_modis$etiqueta_ba, etiquetas_modis$pie_ambos),
-             format = "file"),
-  tar_target(tabla_area_quemada,
-             tabla_area_quemada_csv(area_quemada_parque,
-                                    "outputs/tables/area_quemada_anual.csv"),
-             format = "file"),
-  tar_target(fig_cobertura_quemas,
-             grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
-                                      "outputs/figs/cobertura_area_quemada.png",
-                                      etiquetas_modis$pie_cobertura_ba),
-             format = "file"),
-  tar_target(fig_climatologia_comparada,
-             grafico_climatologia_comparada(firms_mensual,
-                                            area_quemada_mensual,
-                                            "outputs/figs/climatologia_comparada.png",
-                                            etiquetas_modis$etiqueta_ba, etiquetas_modis$pie_ambos),
-             format = "file"),
-  tar_target(fig_cobertura,
-             grafico_cobertura(cobertura, humedales_detecciones,
-                               "outputs/figs/cobertura_detecciones.png",
-                               etiquetas_modis$pie_cobertura),
-             format = "file"),
-  tar_target(tabla_cobertura,
-             tabla_cobertura_csv(cobertura,
-                                 "outputs/tables/cobertura_detecciones.csv"),
-             format = "file"),
-  tar_target(tabla_contraste,
-             tabla_contraste_csv(cobertura, humedales_detecciones,
-                                 cobertura_quemas, humedales_quemas,
-                                 "outputs/tables/contraste_humedales.csv"),
-             format = "file"),
-  tar_target(tabla_borde,
-             tabla_borde_csv(borde_bosque,
-                             "outputs/tables/contexto_borde.csv"),
-             format = "file"),
-  tar_target(tabla_csv,
-             tabla_resumen_csv(firms_parque, area_quemada_parque,
-                               "outputs/tables/resumen_anual.csv"),
-             format = "file"),
-  tar_target(tabla_html,
-             tabla_resumen_html(firms_parque, area_quemada_parque,
-                                "outputs/tables/resumen_anual.html",
-                                etiquetas_modis$fuente_fig, etiquetas_modis$etiqueta_ba),
-             format = "file"),
 
-  # --- Salidas de la plataforma VIIRS S-NPP ----------------------------------
-  tar_target(cartel_resumen_viirs,
-             generar_cartel_resumen(firms_mensual_viirs, area_quemada_mensual_viirs,
-                                    "outputs/figs/viirs/cartel_resumen.png",
-                                    etiquetas_viirs$corta, etiquetas_viirs$ids_fuente,
-                                    etiquetas_viirs$etiqueta_ba),
-             format = "file"),
-  tar_target(video_anomalias_viirs,
-             generar_video_anomalias(firms_parque_viirs, area_quemada_parque_viirs,
-                                     firms_mensual_viirs, area_quemada_mensual_viirs,
-                                     parque, relieve_video,
-                                     "outputs/figs/viirs/video_anomalias_termicas.mp4",
-                                     etiquetas_viirs$corta, etiquetas_viirs$ids_fuente,
-                                     etiquetas_viirs$etiqueta_ba, fps = 5),
-             format = "file"),
-  tar_target(anim_gif_viirs,
-             animar_detecciones(firms_parque_viirs, parque, firms_mensual_viirs,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/viirs/animacion_mensual.gif",
-                                etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_animacion),
-             format = "file"),
-  tar_target(anim_mp4_viirs,
-             animar_detecciones(firms_parque_viirs, parque, firms_mensual_viirs,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/viirs/animacion_mensual.mp4",
-                                etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_animacion),
-             format = "file"),
-  tar_target(mapa_html_viirs,
-             mapa_leaflet_temporal(firms_parque_viirs, parque, cobertura_viirs,
-                                   archivos_worldcover, bbox_descarga,
-                                   humedales, bosque,
-                                   "outputs/maps/viirs/mapa_temporal.html",
-                                   etiquetas_viirs$etiqueta_quemas,
-                                   quemas = area_quemada_parque_viirs),
-             format = "file"),
-  tar_target(fig_serie_viirs,
-             grafico_serie_temporal(firms_mensual_viirs,
-                                    "outputs/figs/viirs/serie_mensual.png",
-                                    etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia_viirs,
-             grafico_climatologia(firms_mensual_viirs,
-                                  "outputs/figs/viirs/climatologia_mensual.png",
-                                  etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_firms),
-             format = "file"),
-  tar_target(fig_serie_html_viirs,
-             grafico_serie_html(firms_mensual_viirs,
-                                "outputs/figs/viirs/serie_mensual.html",
-                                etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia_html_viirs,
-             grafico_climatologia_html(firms_mensual_viirs,
-                                       "outputs/figs/viirs/climatologia_mensual.html",
-                                       etiquetas_viirs$fuente_fig, etiquetas_viirs$pie_firms),
-             format = "file"),
-  tar_target(fig_area_quemada_viirs,
-             grafico_area_quemada(area_quemada_mensual_viirs,
-                                  "outputs/figs/viirs/area_quemada_mensual.png",
-                                  etiquetas_viirs$etiqueta_ba, etiquetas_viirs$pie_ba),
-             format = "file"),
-  tar_target(fig_comparacion_viirs,
-             grafico_comparacion(firms_mensual_viirs, area_quemada_mensual_viirs,
-                                 "outputs/figs/viirs/detecciones_vs_area_quemada.png",
-                                 etiquetas_viirs$etiqueta_ba, etiquetas_viirs$pie_ambos),
-             format = "file"),
-  tar_target(tabla_area_quemada_viirs,
-             tabla_area_quemada_csv(area_quemada_parque_viirs,
-                                    "outputs/tables/viirs/area_quemada_anual.csv"),
-             format = "file"),
-  tar_target(fig_cobertura_quemas_viirs,
-             grafico_cobertura_quemas(cobertura_quemas_viirs, humedales_quemas_viirs,
-                                      "outputs/figs/viirs/cobertura_area_quemada.png",
-                                      etiquetas_viirs$pie_cobertura_ba),
-             format = "file"),
-  tar_target(fig_climatologia_comparada_viirs,
-             grafico_climatologia_comparada(firms_mensual_viirs,
-                                            area_quemada_mensual_viirs,
-                                            "outputs/figs/viirs/climatologia_comparada.png",
-                                            etiquetas_viirs$etiqueta_ba, etiquetas_viirs$pie_ambos),
-             format = "file"),
-  tar_target(fig_cobertura_viirs,
-             grafico_cobertura(cobertura_viirs, humedales_detecciones_viirs,
-                               "outputs/figs/viirs/cobertura_detecciones.png",
-                               etiquetas_viirs$pie_cobertura),
-             format = "file"),
-  tar_target(tabla_cobertura_viirs,
-             tabla_cobertura_csv(cobertura_viirs,
-                                 "outputs/tables/viirs/cobertura_detecciones.csv"),
-             format = "file"),
-  tar_target(tabla_contraste_viirs,
-             tabla_contraste_csv(cobertura_viirs, humedales_detecciones_viirs,
-                                 cobertura_quemas_viirs, humedales_quemas_viirs,
-                                 "outputs/tables/viirs/contraste_humedales.csv"),
-             format = "file"),
-  tar_target(tabla_borde_viirs,
-             tabla_borde_csv(borde_bosque_viirs,
-                             "outputs/tables/viirs/contexto_borde.csv"),
-             format = "file"),
-  tar_target(tabla_csv_viirs,
-             tabla_resumen_csv(firms_parque_viirs, area_quemada_parque_viirs,
-                               "outputs/tables/viirs/resumen_anual.csv"),
-             format = "file"),
-  tar_target(tabla_html_viirs,
-             tabla_resumen_html(firms_parque_viirs, area_quemada_parque_viirs,
-                                "outputs/tables/viirs/resumen_anual.html",
-                                etiquetas_viirs$fuente_fig, etiquetas_viirs$etiqueta_ba),
-             format = "file"),
+  # --- Área quemada, por PRODUCTO y no por plataforma ----------------------
+  # Hay exactamente dos productos y son un recurso compartido: VNP64A1
+  # alimenta a tres plataformas. Nombrarlos por producto evita un target
+  # llamado "granulos_ba_noaa21" que contendría granulos de Suomi-NPP, y evita
+  # repetir la consulta al catálogo CMR (que corre en cada ejecución) una vez
+  # por plataforma.
+  tar_target(granulos_mcd64a1,
+             cmr_granulos_ba(fecha_inicio, fecha_fin,
+                             MCD64A1_SHORT_NAME, MCD64A1_VERSION),
+             cue = tar_cue(mode = "always"), iteration = "group"),
+  tar_target(hdf_mcd64a1,
+             descargar_granulo_ba(granulos_mcd64a1, "data/raw/mcd64a1"),
+             pattern = map(granulos_mcd64a1), format = "file"),
+  tar_target(quemas_mcd64a1, extraer_quemas(hdf_mcd64a1, parque)),
+  tar_target(granulos_vnp64a1,
+             cmr_granulos_ba(fecha_inicio, fecha_fin,
+                             VNP64A1_SHORT_NAME, VNP64A1_VERSION),
+             cue = tar_cue(mode = "always"), iteration = "group"),
+  tar_target(hdf_vnp64a1,
+             descargar_granulo_ba(granulos_vnp64a1, "data/raw/vnp64a1"),
+             pattern = map(granulos_vnp64a1), format = "file"),
+  tar_target(quemas_vnp64a1, extraer_quemas(hdf_vnp64a1, parque)),
 
-  # --- Salidas de la plataforma VIIRS NOAA-20 --------------------------------
-  tar_target(cartel_resumen_noaa20,
-             generar_cartel_resumen(firms_mensual_noaa20, area_quemada_mensual_noaa20,
-                                    "outputs/figs/noaa20/cartel_resumen.png",
-                                    etiquetas_noaa20$corta, etiquetas_noaa20$ids_fuente,
-                                    etiquetas_noaa20$etiqueta_ba),
-             format = "file"),
-  tar_target(video_anomalias_noaa20,
-             generar_video_anomalias(firms_parque_noaa20, area_quemada_parque_noaa20,
-                                     firms_mensual_noaa20, area_quemada_mensual_noaa20,
-                                     parque, relieve_video,
-                                     "outputs/figs/noaa20/video_anomalias_termicas.mp4",
-                                     etiquetas_noaa20$corta, etiquetas_noaa20$ids_fuente,
-                                     etiquetas_noaa20$etiqueta_ba, fps = 5),
-             format = "file"),
-  tar_target(anim_gif_noaa20,
-             animar_detecciones(firms_parque_noaa20, parque, firms_mensual_noaa20,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/noaa20/animacion_mensual.gif",
-                                etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_animacion),
-             format = "file"),
-  tar_target(anim_mp4_noaa20,
-             animar_detecciones(firms_parque_noaa20, parque, firms_mensual_noaa20,
-                                archivos_worldcover, bbox_descarga,
-                                "outputs/figs/noaa20/animacion_mensual.mp4",
-                                etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_animacion),
-             format = "file"),
-  tar_target(mapa_html_noaa20,
-             mapa_leaflet_temporal(firms_parque_noaa20, parque, cobertura_noaa20,
-                                   archivos_worldcover, bbox_descarga,
-                                   humedales, bosque,
-                                   "outputs/maps/noaa20/mapa_temporal.html",
-                                   etiquetas_noaa20$etiqueta_quemas,
-                                   quemas = area_quemada_parque_noaa20),
-             format = "file"),
-  tar_target(fig_serie_noaa20,
-             grafico_serie_temporal(firms_mensual_noaa20,
-                                    "outputs/figs/noaa20/serie_mensual.png",
-                                    etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia_noaa20,
-             grafico_climatologia(firms_mensual_noaa20,
-                                  "outputs/figs/noaa20/climatologia_mensual.png",
-                                  etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_firms),
-             format = "file"),
-  tar_target(fig_serie_html_noaa20,
-             grafico_serie_html(firms_mensual_noaa20,
-                                "outputs/figs/noaa20/serie_mensual.html",
-                                etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_firms),
-             format = "file"),
-  tar_target(fig_climatologia_html_noaa20,
-             grafico_climatologia_html(firms_mensual_noaa20,
-                                       "outputs/figs/noaa20/climatologia_mensual.html",
-                                       etiquetas_noaa20$fuente_fig, etiquetas_noaa20$pie_firms),
-             format = "file"),
-  tar_target(fig_area_quemada_noaa20,
-             grafico_area_quemada(area_quemada_mensual_noaa20,
-                                  "outputs/figs/noaa20/area_quemada_mensual.png",
-                                  etiquetas_noaa20$etiqueta_ba, etiquetas_noaa20$pie_ba),
-             format = "file"),
-  tar_target(fig_comparacion_noaa20,
-             grafico_comparacion(firms_mensual_noaa20, area_quemada_mensual_noaa20,
-                                 "outputs/figs/noaa20/detecciones_vs_area_quemada.png",
-                                 etiquetas_noaa20$etiqueta_ba, etiquetas_noaa20$pie_ambos),
-             format = "file"),
-  tar_target(tabla_area_quemada_noaa20,
-             tabla_area_quemada_csv(area_quemada_parque_noaa20,
-                                    "outputs/tables/noaa20/area_quemada_anual.csv"),
-             format = "file"),
-  tar_target(fig_cobertura_quemas_noaa20,
-             grafico_cobertura_quemas(cobertura_quemas_noaa20, humedales_quemas_noaa20,
-                                      "outputs/figs/noaa20/cobertura_area_quemada.png",
-                                      etiquetas_noaa20$pie_cobertura_ba),
-             format = "file"),
-  tar_target(fig_climatologia_comparada_noaa20,
-             grafico_climatologia_comparada(firms_mensual_noaa20,
-                                            area_quemada_mensual_noaa20,
-                                            "outputs/figs/noaa20/climatologia_comparada.png",
-                                            etiquetas_noaa20$etiqueta_ba, etiquetas_noaa20$pie_ambos),
-             format = "file"),
-  tar_target(fig_cobertura_noaa20,
-             grafico_cobertura(cobertura_noaa20, humedales_detecciones_noaa20,
-                               "outputs/figs/noaa20/cobertura_detecciones.png",
-                               etiquetas_noaa20$pie_cobertura),
-             format = "file"),
-  tar_target(tabla_cobertura_noaa20,
-             tabla_cobertura_csv(cobertura_noaa20,
-                                 "outputs/tables/noaa20/cobertura_detecciones.csv"),
-             format = "file"),
-  tar_target(tabla_contraste_noaa20,
-             tabla_contraste_csv(cobertura_noaa20, humedales_detecciones_noaa20,
-                                 cobertura_quemas_noaa20, humedales_quemas_noaa20,
-                                 "outputs/tables/noaa20/contraste_humedales.csv"),
-             format = "file"),
-  tar_target(tabla_borde_noaa20,
-             tabla_borde_csv(borde_bosque_noaa20,
-                             "outputs/tables/noaa20/contexto_borde.csv"),
-             format = "file"),
-  tar_target(tabla_csv_noaa20,
-             tabla_resumen_csv(firms_parque_noaa20, area_quemada_parque_noaa20,
-                               "outputs/tables/noaa20/resumen_anual.csv"),
-             format = "file"),
-  tar_target(tabla_html_noaa20,
-             tabla_resumen_html(firms_parque_noaa20, area_quemada_parque_noaa20,
-                                "outputs/tables/noaa20/resumen_anual.html",
-                                etiquetas_noaa20$fuente_fig, etiquetas_noaa20$etiqueta_ba),
-             format = "file"),
+  # --- Una cadena por plataforma -------------------------------------------
+  # Todo lo que sigue existe cuatro veces, con el sufijo de la clave. El área
+  # quemada se recorta al período observado por la plataforma: sin ese
+  # recorte, una plataforma que empieza en 2018 mostraría superficie quemada
+  # de 2012, años sin detecciones, sugiriendo un vacío de detección
+  # inexistente.
+  tar_map(
+    values = plataformas_pipeline,
+    names = clave,
+    descriptions = etiqueta,
 
-  # --- Sondeo de la plataforma VIIRS NOAA-21 --------------------------------
-  # Cadena mínima, sin productos ni reporte: NOAA-21 solo existe en tiempo casi
-  # real (nunca ha tenido procesamiento estándar) y su registro arranca en
-  # 2024. Se descarga primero para medir cuántas detecciones quedan DENTRO del
-  # parque antes de comprometer un juego completo: el bbox de descarga incluye
-  # la quema agrícola del valle del Tempisque y no es proxy del parque.
-  tar_target(rangos_noaa21,
-             rangos_plataforma("noaa21", fecha_inicio, fecha_fin),
-             cue = tar_cue(mode = "always")),
-  tar_target(fragmentos_noaa21, construir_fragmentos_multi(rangos_noaa21),
-             iteration = "group"),
-  tar_target(
-    csv_fragmentos_noaa21,
-    descargar_firms_fragmento(fragmentos_noaa21, bbox_descarga),
-    pattern = map(fragmentos_noaa21),
-    format = "file"
+    tar_target(etiquetas, etiquetas_plataforma(clave)),
+    tar_target(rangos, rangos_plataforma(clave, fecha_inicio, fecha_fin),
+               cue = tar_cue(mode = "always")),
+    tar_target(fragmentos, construir_fragmentos_multi(rangos),
+               iteration = "group"),
+    tar_target(csv_fragmentos,
+               descargar_firms_fragmento(fragmentos, bbox_descarga),
+               pattern = map(fragmentos), format = "file"),
+    tar_target(firms_crudo,   leer_y_unir_csv(csv_fragmentos, rangos)),
+    tar_target(firms_puntos,  a_sf_puntos(firms_crudo)),
+    tar_target(firms_parque,  recortar_al_parque(firms_puntos, parque)),
+    tar_target(firms_mensual, agregar_mensual(firms_parque, rangos)),
+    tar_target(cobertura, extraer_cobertura(firms_parque, archivos_worldcover)),
+    tar_target(humedales_detecciones,
+               cruzar_con_humedales(firms_parque, humedales)),
+    tar_target(area_quemada_parque,
+               recortar_quemas_al_periodo(quemas_origen, firms_mensual)),
+    tar_target(area_quemada_mensual,
+               agregar_mensual_quemas(area_quemada_parque,
+                                      rango_meses = range(firms_mensual$aniomes))),
+    tar_target(cobertura_quemas,
+               extraer_cobertura_quemas(area_quemada_parque,
+                                        archivos_worldcover)),
+    tar_target(humedales_quemas,
+               cruzar_quemas_con_humedales(area_quemada_parque, humedales)),
+    tar_target(borde_bosque,
+               contexto_borde(firms_parque, parque, archivos_worldcover,
+                              bbox_descarga, quemas = area_quemada_parque)),
+
+    tar_target(cartel_resumen,
+               generar_cartel_resumen(firms_mensual, area_quemada_mensual,
+                                      file.path("outputs/figs", clave,
+                                                "cartel_resumen.png"),
+                                      etiquetas$corta, etiquetas$ids_fuente,
+                                      etiquetas$etiqueta_ba),
+               format = "file"),
+    tar_target(video_anomalias,
+               generar_video_anomalias(firms_parque, area_quemada_parque,
+                                       firms_mensual, area_quemada_mensual,
+                                       parque, relieve_video,
+                                       file.path("outputs/figs", clave,
+                                                 "video_anomalias_termicas.mp4"),
+                                       etiquetas$corta, etiquetas$ids_fuente,
+                                       etiquetas$etiqueta_ba, fps = 5),
+               format = "file"),
+    tar_target(anim_gif,
+               animar_detecciones(firms_parque, parque, firms_mensual,
+                                  archivos_worldcover, bbox_descarga,
+                                  file.path("outputs/figs", clave,
+                                            "animacion_mensual.gif"),
+                                  etiquetas$fuente_fig, etiquetas$pie_animacion),
+               format = "file"),
+    tar_target(anim_mp4,
+               animar_detecciones(firms_parque, parque, firms_mensual,
+                                  archivos_worldcover, bbox_descarga,
+                                  file.path("outputs/figs", clave,
+                                            "animacion_mensual.mp4"),
+                                  etiquetas$fuente_fig, etiquetas$pie_animacion),
+               format = "file"),
+    tar_target(mapa_html,
+               mapa_leaflet_temporal(firms_parque, parque, cobertura,
+                                     archivos_worldcover, bbox_descarga,
+                                     humedales, bosque,
+                                     file.path("outputs/maps", clave,
+                                               "mapa_temporal.html"),
+                                     etiquetas$etiqueta_quemas,
+                                     quemas = area_quemada_parque),
+               format = "file"),
+    tar_target(fig_serie,
+               grafico_serie_temporal(firms_mensual,
+                                      file.path("outputs/figs", clave,
+                                                "serie_mensual.png"),
+                                      etiquetas$fuente_fig, etiquetas$pie_firms),
+               format = "file"),
+    tar_target(fig_climatologia,
+               grafico_climatologia(firms_mensual,
+                                    file.path("outputs/figs", clave,
+                                              "climatologia_mensual.png"),
+                                    etiquetas$fuente_fig, etiquetas$pie_firms),
+               format = "file"),
+    tar_target(fig_serie_html,
+               grafico_serie_html(firms_mensual,
+                                  file.path("outputs/figs", clave,
+                                            "serie_mensual.html"),
+                                  etiquetas$fuente_fig, etiquetas$pie_firms),
+               format = "file"),
+    tar_target(fig_climatologia_html,
+               grafico_climatologia_html(firms_mensual,
+                                         file.path("outputs/figs", clave,
+                                                   "climatologia_mensual.html"),
+                                         etiquetas$fuente_fig,
+                                         etiquetas$pie_firms),
+               format = "file"),
+    tar_target(fig_area_quemada,
+               grafico_area_quemada(area_quemada_mensual,
+                                    file.path("outputs/figs", clave,
+                                              "area_quemada_mensual.png"),
+                                    etiquetas$etiqueta_ba, etiquetas$pie_ba),
+               format = "file"),
+    tar_target(fig_comparacion,
+               grafico_comparacion(firms_mensual, area_quemada_mensual,
+                                   file.path("outputs/figs", clave,
+                                             "detecciones_vs_area_quemada.png"),
+                                   etiquetas$etiqueta_ba, etiquetas$pie_ambos),
+               format = "file"),
+    tar_target(fig_cobertura_quemas,
+               grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                                        file.path("outputs/figs", clave,
+                                                  "cobertura_area_quemada.png"),
+                                        etiquetas$pie_cobertura_ba),
+               format = "file"),
+    tar_target(fig_climatologia_comparada,
+               grafico_climatologia_comparada(firms_mensual,
+                                              area_quemada_mensual,
+                                              file.path("outputs/figs", clave,
+                                                        "climatologia_comparada.png"),
+                                              etiquetas$etiqueta_ba,
+                                              etiquetas$pie_ambos),
+               format = "file"),
+    tar_target(fig_cobertura,
+               grafico_cobertura(cobertura, humedales_detecciones,
+                                 file.path("outputs/figs", clave,
+                                           "cobertura_detecciones.png"),
+                                 etiquetas$pie_cobertura),
+               format = "file"),
+    tar_target(tabla_area_quemada,
+               tabla_area_quemada_csv(area_quemada_parque,
+                                      file.path("outputs/tables", clave,
+                                                "area_quemada_anual.csv")),
+               format = "file"),
+    tar_target(tabla_cobertura,
+               tabla_cobertura_csv(cobertura,
+                                   file.path("outputs/tables", clave,
+                                             "cobertura_detecciones.csv")),
+               format = "file"),
+    tar_target(tabla_contraste,
+               tabla_contraste_csv(cobertura, humedales_detecciones,
+                                   cobertura_quemas, humedales_quemas,
+                                   file.path("outputs/tables", clave,
+                                             "contraste_humedales.csv")),
+               format = "file"),
+    tar_target(tabla_borde,
+               tabla_borde_csv(borde_bosque,
+                               file.path("outputs/tables", clave,
+                                         "contexto_borde.csv")),
+               format = "file"),
+    tar_target(tabla_csv,
+               tabla_resumen_csv(firms_parque, area_quemada_parque,
+                                 file.path("outputs/tables", clave,
+                                           "resumen_anual.csv")),
+               format = "file"),
+    tar_target(tabla_html,
+               tabla_resumen_html(firms_parque, area_quemada_parque,
+                                  file.path("outputs/tables", clave,
+                                            "resumen_anual.html"),
+                                  etiquetas$fuente_fig, etiquetas$etiqueta_ba),
+               format = "file")
   ),
-  tar_target(firms_crudo_noaa21,   leer_y_unir_csv(csv_fragmentos_noaa21, rangos_noaa21)),
-  tar_target(firms_puntos_noaa21,  a_sf_puntos(firms_crudo_noaa21)),
-  tar_target(firms_parque_noaa21,  recortar_al_parque(firms_puntos_noaa21, parque)),
-  tar_target(firms_mensual_noaa21, agregar_mensual(firms_parque_noaa21, rangos_noaa21)),
 
-  # --- Reporte Quarto → index.html en la raíz (GitHub Pages) ---------------
-  # El .qmd llama funciones de R/ directamente (crear_mapa_temporal,
-  # crear_grafico_cobertura, ...) que carga con tar_source(). tar_quarto solo
-  # detecta como dependencias los targets leídos con tar_read()/tar_load(), no
-  # esas funciones, así que sin `extra_files` un cambio en R/ dejaba el reporte
-  # sin regenerar (y publicaba una versión vieja). Cualquier cambio en R/
-  # invalida ahora el render; el costo es re-renderizar (~20 s) también cuando
-  # el cambio no afecta al reporte.
-  tar_quarto(reporte, "analysis/index.qmd",
+  # --- Reportes Quarto ------------------------------------------------------
+  # Se escriben explícitamente: son el elemento menos uniforme del proyecto
+  # (su prosa es distinta por definición) y son pocos. tar_quarto solo detecta
+  # como dependencias los targets leídos con tar_read() dentro del qmd, no las
+  # funciones de R/ que el qmd llama vía tar_source(); de ahí `extra_files`.
+  tar_quarto(reporte_modis, "analysis/index.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
                                       full.names = TRUE)),
-  tar_target(pagina_principal, {
-    reporte  # dependencia explícita del render
+  tar_target(pagina_modis, {
+    reporte_modis
     file.copy("analysis/index.html", "index.html", overwrite = TRUE)
     "index.html"
   }, format = "file"),
-
-  # --- Reporte VIIRS → viirs/index.html (misma publicación, otra ruta) -----
-  # GitHub Pages sirve la raíz de main, así que viirs/index.html queda en
-  # <sitio>/viirs/ sin tocar la URL del reporte MODIS.
   tar_quarto(reporte_viirs, "analysis/viirs.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
                                       full.names = TRUE)),
   tar_target(pagina_viirs, {
-    reporte_viirs  # dependencia explícita del render
+    reporte_viirs
     dir.create("viirs", showWarnings = FALSE)
     file.copy("analysis/viirs.html", "viirs/index.html", overwrite = TRUE)
     "viirs/index.html"
   }, format = "file"),
-
-  # --- Reporte NOAA-20 → noaa20/index.html --------------------------------
   tar_quarto(reporte_noaa20, "analysis/noaa20.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
                                       full.names = TRUE)),
   tar_target(pagina_noaa20, {
-    reporte_noaa20  # dependencia explícita del render
+    reporte_noaa20
     dir.create("noaa20", showWarnings = FALSE)
     file.copy("analysis/noaa20.html", "noaa20/index.html", overwrite = TRUE)
     "noaa20/index.html"

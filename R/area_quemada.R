@@ -61,7 +61,7 @@ extraer_quemas <- function(paths_hdf, parque) {
   if (ext_p$xmin > ext_r$xmax || ext_p$xmax < ext_r$xmin ||
       ext_p$ymin > ext_r$ymax || ext_p$ymax < ext_r$ymin) {
     stop("El granulo ", basename(paths_hdf[[1]]), " no cubre el parque: ",
-         "revise TESELA_MCD64A1 en R/constantes.R.", call. = FALSE)
+         "revise TESELA_SINUSOIDAL en R/constantes.R.", call. = FALSE)
   }
 
   quemas <- purrr::map(paths_hdf, function(path) {
