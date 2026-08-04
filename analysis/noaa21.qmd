@@ -31,7 +31,7 @@ Este reporte presenta las anomalías térmicas (detecciones de fuego activo)
 registradas por el sensor **VIIRS** a bordo del satélite **NOAA-21** en el
 [Parque Nacional Palo Verde](https://www.sinac.go.cr/), Costa Rica. Es el
 cuarto de una serie de reportes equivalentes, junto con los de
-[MODIS](../modis/), [VIIRS en Suomi-NPP](../viirs/) y
+[MODIS](../modis/), [VIIRS en Suomi-NPP](../snpp/) y
 [VIIRS en NOAA-20](../noaa20/).
 
 NOAA-21 es la plataforma más reciente de la constelación VIIRS y lleva el
@@ -302,7 +302,7 @@ cercanía a caminos y linderos.
   <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
   *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
 
-Los reportes análogos: [MODIS](../modis/), [VIIRS en Suomi-NPP](../viirs/) y
+Los reportes análogos: [MODIS](../modis/), [VIIRS en Suomi-NPP](../snpp/) y
 [VIIRS en NOAA-20](../noaa20/).
 
 El código de este análisis está disponible en

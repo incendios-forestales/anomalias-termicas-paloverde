@@ -14,9 +14,9 @@
 # CÓMO LEER ESTE ARCHIVO
 # Las cuatro cadenas se generan con tarchetypes::tar_map a partir de
 # PLATAFORMAS (R/plataformas.R): cada target del bloque `tar_map` existe
-# cuatro veces, con el sufijo de la clave de plataforma (_modis, _viirs,
+# cuatro veces, con el sufijo de la clave de plataforma (_modis, _snpp,
 # _noaa20, _noaa21). Es decir, `firms_parque` no existe como tal; existen
-# `firms_parque_modis`, `firms_parque_viirs`, etc.
+# `firms_parque_modis`, `firms_parque_snpp`, etc.
 #
 # La descarga es reanudable: cada fragmento de fechas es una rama dinámica
 # respaldada por un CSV en data/raw/firms/; si la ejecución se interrumpe,
@@ -284,9 +284,9 @@ list(
   # --- Figura comparativa de las cuatro plataformas ------------------------
   tar_target(fig_series_plataformas,
              grafico_series_plataformas(
-               list(firms_mensual_modis, firms_mensual_viirs,
+               list(firms_mensual_modis, firms_mensual_snpp,
                     firms_mensual_noaa20, firms_mensual_noaa21),
-               list(etiquetas_modis, etiquetas_viirs,
+               list(etiquetas_modis, etiquetas_snpp,
                     etiquetas_noaa20, etiquetas_noaa21),
                "outputs/figs/series_plataformas.png"),
              format = "file"),
@@ -305,14 +305,14 @@ list(
     file.copy("analysis/modis.html", "modis/index.html", overwrite = TRUE)
     "modis/index.html"
   }, format = "file"),
-  tar_quarto(reporte_viirs, "analysis/viirs.qmd",
+  tar_quarto(reporte_snpp, "analysis/snpp.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
                                       full.names = TRUE)),
-  tar_target(pagina_viirs, {
-    reporte_viirs
-    dir.create("viirs", showWarnings = FALSE)
-    file.copy("analysis/viirs.html", "viirs/index.html", overwrite = TRUE)
-    "viirs/index.html"
+  tar_target(pagina_snpp, {
+    reporte_snpp
+    dir.create("snpp", showWarnings = FALSE)
+    file.copy("analysis/snpp.html", "snpp/index.html", overwrite = TRUE)
+    "snpp/index.html"
   }, format = "file"),
   tar_quarto(reporte_noaa20, "analysis/noaa20.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
