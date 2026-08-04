@@ -78,6 +78,35 @@ list(
   tar_target(bosque, sf::st_read(archivo_bosque, quiet = TRUE)),
   tar_target(humedales_detecciones, cruzar_con_humedales(firms_parque, humedales)),
 
+  # --- Fuente VIIRS S-NPP: cadena paralela a la de MODIS -------------------
+  # Genera productos independientes: las detecciones de sensores distintos
+  # NUNCA se suman (375 m de VIIRS detecta muchos más fuegos que 1 km de
+  # MODIS). La rejilla de fragmentos es común (ORIGEN_GRILLA) y clamp_rango()
+  # recorta al registro VIIRS (desde 2012-01-20). Si se agrega una tercera
+  # fuente, migrar estas cadenas a tarchetypes::tar_map.
+  tar_target(fuente_firms_viirs, "VIIRS_SNPP_SP"),
+  tar_target(rango_disponible_viirs, firms_disponibilidad(fuente_firms_viirs),
+             cue = tar_cue(mode = "always")),
+  tar_target(rango_efectivo_viirs,
+             clamp_rango(fecha_inicio, fecha_fin, rango_disponible_viirs)),
+  tar_target(fragmentos_viirs, construir_fragmentos(rango_efectivo_viirs),
+             iteration = "group"),
+  tar_target(
+    csv_fragmentos_viirs,
+    descargar_firms_fragmento(fragmentos_viirs, fuente_firms_viirs,
+                              bbox_descarga),
+    pattern = map(fragmentos_viirs),
+    format = "file"
+  ),
+  tar_target(firms_crudo_viirs,   leer_y_unir_csv(csv_fragmentos_viirs)),
+  tar_target(firms_puntos_viirs,  a_sf_puntos(firms_crudo_viirs)),
+  tar_target(firms_parque_viirs,  recortar_al_parque(firms_puntos_viirs, parque)),
+  tar_target(firms_mensual_viirs, agregar_mensual(firms_parque_viirs)),
+  tar_target(cobertura_viirs,
+             extraer_cobertura(firms_parque_viirs, archivos_worldcover)),
+  tar_target(humedales_detecciones_viirs,
+             cruzar_con_humedales(firms_parque_viirs, humedales)),
+
   # --- Área quemada (MCD64A1 v6.1, LP DAAC vía Earthdata) ------------------
   # FIRMS no entrega BA_MODIS como datos (su API de área responde vacío);
   # se usa el producto original. Ver cabecera de R/descarga_mcd64a1.R.
