@@ -9,27 +9,35 @@ con deslizador temporal, gráficos estadísticos interactivos y tablas.
 
 Cada sensor se procesa por separado y tiene su propio juego de productos:
 
-| Plataforma | Fuego activo | Área quemada | Registro | Productos |
+| Plataforma | Fuego activo (FIRMS) | Área quemada | Registro | Reporte |
 |---|---|---|---|---|
-| MODIS (Terra/Aqua, ~1 km) | `MODIS_SP` | MCD64A1 v6.1 | desde 2001 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/) |
-| VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` | VNP64A1 v002 | desde 2012 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/viirs/) |
-| VIIRS (NOAA-20, 375 m) | `VIIRS_NOAA20_SP` | VNP64A1 (de S-NPP)¹ | desde 2018 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa20/) |
+| MODIS (Terra/Aqua, ~1 km) | `MODIS_SP` + `MODIS_NRT` | MCD64A1 v6.1 | desde 2001 | [modis/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/modis/) |
+| VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` + `_NRT` | VNP64A1 v002 | desde 2012 | [viirs/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/viirs/) |
+| VIIRS (NOAA-20, 375 m) | `VIIRS_NOAA20_SP` + `_NRT` | VNP64A1 (de S-NPP)¹ | desde 2018 | [noaa20/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa20/) |
+| VIIRS (NOAA-21, 375 m) | `VIIRS_NOAA21_NRT`² | VNP64A1 (de S-NPP)¹ | desde 2024 | [noaa21/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa21/) |
 
-¹ NOAA-20 no tiene producto de área quemada (`VJ164A1` no está publicado en
-CMR), así que sus productos se acompañan del único de la familia VIIRS,
-VNP64A1 de Suomi-NPP, recortado a su ventana temporal y **rotulado como tal**
-en toda figura, tabla y leyenda donde aparece.
+¹ NOAA-20 y NOAA-21 no tienen producto de área quemada propio (`VJ164A1` no
+está publicado en CMR), así que toman el de Suomi-NPP, recortado a su ventana
+temporal y **rotulado como tal** en toda figura, tabla y leyenda.
+² NOAA-21 es la única plataforma **sin procesamiento estándar**: todos sus
+datos son en tiempo casi real y por tanto provisionales.
 
-Las series **no se suman ni se empalman**: VIIRS detecta muchos más fuegos que
-MODIS sobre el mismo territorio, y dos satélites VIIRS observan más veces que
-uno, de modo que unirlas produciría saltos artificiales —en 2012 y en 2018—
-que reflejarían el instrumental disponible y no el régimen de fuego. VIIRS
-importa como continuidad (Terra y Aqua terminan en 2027) y como contraste
-independiente: comparar plataformas permite distinguir qué hallazgos son
-propiedades del fuego y cuáles artefactos del tamaño del píxel o de un
-episodio puntual.
+Cada serie se sirve de su procesamiento estándar y, a continuación, de su cola
+en tiempo casi real, de modo que llega hasta hace pocos días; ese tramo va
+marcado como provisional en todos los productos. Las series **no se suman ni
+se empalman** entre plataformas: más resolución detecta más fuegos y más
+satélites observan más veces, así que una serie combinada mostraría saltos
+—en 2012, 2018 y 2024— que reflejarían el instrumental disponible y no el
+régimen de fuego.
 
-**Productos en línea**: <https://incendios-forestales.github.io/anomalias-termicas-paloverde/>
+**La portada del sitio** presenta las cuatro y reúne los hallazgos comunes:
+<https://incendios-forestales.github.io/anomalias-termicas-paloverde/>
+
+Tener cuatro series paralelas sirve para tres cosas: **continuidad** (Terra y
+Aqua terminan en 2027 y las plataformas VIIRS son su relevo), **contraste**
+—cuando cuatro instrumentos independientes coinciden, el hallazgo no es
+artefacto de ninguno— y **cobertura reciente** gracias a las colas en tiempo
+casi real.
 
 ## Arquitectura
 
@@ -37,10 +45,13 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
 
 1. **Obtención de datos**
    - Detecciones: API de área de FIRMS, descargada en fragmentos de 5 días.
-   - Área quemada: granulos mensuales de MCD64A1 v6.1 (500 m) desde LP DAAC,
-     descubiertos vía el API CMR de Earthdata. FIRMS lista este producto como
-     `BA_MODIS` pero su API no lo entrega como datos (responde vacío), por lo
-     que se usa el producto original.
+   - Área quemada: granulos mensuales de MCD64A1 v6.1 y VNP64A1 v002 (500 m)
+     desde LP DAAC, descubiertos vía el API CMR de Earthdata. FIRMS lista
+     estos productos (`BA_MODIS`, `BA_VIIRS`) pero su API no los entrega como
+     datos (responde vacío), por lo que se usan los originales. No existe
+     versión en tiempo casi real del área quemada: el método necesita observar
+     la cicatriz durante semanas, así que el tramo más reciente de cada serie
+     tiene detecciones pero todavía no superficie.
    - Polígono del parque y capas nacionales (humedales, cobertura forestal):
      WFS del SINAC.
    - Cobertura de la tierra: teselas de ESA WorldCover 2021 (10 m) desde S3.
@@ -123,7 +134,7 @@ termina en tiempo razonable. Implementación en
 
 ### Video estilo cartel
 
-`outputs/figs/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
+`outputs/figs/<plataforma>/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
 un cuadro por mes: detecciones de fuego con resplandor y estela de los meses
 recientes, píxeles de área quemada y, por cada serie, el acumulado desde
 2001 con el valor del mes en curso debajo (por separado: son magnitudes
@@ -144,7 +155,7 @@ complementarias y no sumables), en un estilo inspirado en los videos de
   hillshade; fuera del parque, una rampa neutra atenuada.
 
 Implementación en [`R/video.R`](R/video.R). El cartel estático
-`outputs/figs/cartel_resumen.png` (target `cartel_resumen`) resume las dos
+`outputs/figs/<plataforma>/cartel_resumen.png` (target `cartel_resumen`) resume las dos
 series mensuales con el mismo estilo visual, en dos paneles apilados —
 nunca un doble eje: son magnitudes no comparables — con el mes máximo de
 cada serie rotulado.
@@ -202,14 +213,29 @@ Los parámetros se editan al inicio de [`_targets.R`](_targets.R):
 |---|---|---|
 | `fecha_inicio` | Inicio del período | `2001-01-01` |
 | `fecha_fin` | Fin del período (se recorta a lo disponible) | `2100-01-01` (= todo lo disponible) |
-| `fuente_firms` | Producto de FIRMS de la cadena MODIS | `MODIS_SP` |
-| `fuente_firms_viirs` | Producto de FIRMS de la cadena Suomi-NPP | `VIIRS_SNPP_SP` |
-| `fuente_firms_noaa20` | Producto de FIRMS de la cadena NOAA-20 | `VIIRS_NOAA20_SP` |
 
-Cada plataforma tiene su propia cadena de targets —sufijos `_viirs` y
-`_noaa20`— y produce su propio juego de salidas, que nunca se suman entre sí
-(ver la tabla de la introducción). Con tres cadenas ya explícitas, agregar una
-cuarta fuente es el momento de migrarlas a `tarchetypes::tar_map`.
+Las plataformas se definen en la tabla `PLATAFORMAS` de
+[`R/plataformas.R`](R/plataformas.R): una fila por plataforma, de la que se
+derivan las colecciones de FIRMS, el producto de área quemada, los
+directorios de salida y **todos los rótulos visibles**. Agregar una plataforma
+es agregar una fila.
+
+### Cómo leer el pipeline
+
+Las cuatro cadenas se generan con `tarchetypes::tar_map`, así que los nombres
+de target **no aparecen literalmente** en `_targets.R`: cada target del bloque
+`tar_map` existe cuatro veces con el sufijo de la clave de plataforma. No
+existe `firms_parque`; existen `firms_parque_modis`, `firms_parque_viirs`,
+`firms_parque_noaa20` y `firms_parque_noaa21`.
+
+```r
+targets::tar_manifest(fields = "name")   # lista los targets generados
+targets::tar_visnetwork()                # grafo, con el nombre de cada plataforma
+```
+
+El área quemada se organiza por **producto** y no por plataforma
+(`quemas_mcd64a1`, `quemas_vnp64a1`): hay exactamente dos y VNP64A1 alimenta a
+tres plataformas.
 
 Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 área quemada) en [`R/constantes.R`](R/constantes.R).
@@ -221,12 +247,14 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 ├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
 │                       #   cobertura de la tierra, contexto paisajístico,
 │                       #   visualización y tablas
-├── analysis/index.qmd  # reporte MODIS    → index.html (GitHub Pages)
-├── analysis/viirs.qmd  # reporte S-NPP    → viirs/index.html
-├── analysis/noaa20.qmd # reporte NOAA-20  → noaa20/index.html
+├── analysis/portada.qmd # portada         → index.html (GitHub Pages)
+├── analysis/modis.qmd   # reporte MODIS   → modis/index.html
+├── analysis/viirs.qmd   # reporte S-NPP   → viirs/index.html
+├── analysis/noaa20.qmd  # reporte NOAA-20 → noaa20/index.html
+├── analysis/noaa21.qmd  # reporte NOAA-21 → noaa21/index.html
 ├── data/raw/           # caché de datos crudos (no versionada)
-├── outputs/            # figuras, mapas y tablas generados (MODIS en la raíz
-│                       #   de cada subdirectorio; VIIRS en su carpeta viirs/)
+├── outputs/            # figuras, mapas y tablas, en una carpeta por
+│                       #   plataforma: figs/modis/, figs/viirs/, ...
 ├── Dockerfile          # rocker/geospatial + paquetes del proyecto
 ├── docker-compose.yml  # RStudio Server (puerto 8787)
 └── renv.lock           # versiones fijadas de paquetes

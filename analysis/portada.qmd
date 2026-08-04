@@ -1,0 +1,209 @@
+---
+title: "Anomalías térmicas en el Parque Nacional Palo Verde"
+subtitle: "Cuatro plataformas satelitales, cuatro series independientes"
+author: "Organización Incendios Forestales"
+date: today
+lang: es
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "Contenido"
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: configuracion
+library(targets)
+almacen <- here::here("_targets")
+tar_source(here::here("R"))
+claves <- c("modis", "viirs", "noaa20", "noaa21")
+resumen <- resumen_multiplataforma(claves, almacen)
+```
+
+::: {.callout-note}
+Hasta agosto de 2026 esta dirección mostraba el reporte de MODIS, que ahora
+vive en **[`/modis/`](modis/)**. Las cuatro plataformas se publican como
+iguales y esta página es la entrada común.
+:::
+
+## Qué es esto
+
+Este proyecto registra las **anomalías térmicas** —detecciones de fuego
+activo— y el **área quemada** en el
+[Parque Nacional Palo Verde](https://www.sinac.go.cr/), en la cuenca baja del
+Tempisque, Costa Rica. Todo se genera con un pipeline reproducible en R que
+descarga los datos de la NASA y del SINAC, los recorta al polígono del parque
+y produce mapas, animaciones, series y tablas.
+
+Dos precisiones de vocabulario, porque el proyecto las respeta en todos sus
+productos. Una **anomalía térmica** es un píxel que el satélite vio caliente
+al momento de pasar: no es un incendio, es un instante de fuego observado
+desde la órbita. El **área quemada** es otra cosa: la superficie que quedó
+marcada, reconocida por un cambio persistente de la reflectancia semanas
+después. Un incendio genera muchas anomalías térmicas y una sola cicatriz.
+
+## Cuatro plataformas, cuatro series
+
+```{r}
+#| label: tabla-plataformas
+tabla <- resumen |>
+  dplyr::transmute(
+    Plataforma = plataforma,
+    `Fuentes de FIRMS` = fuentes,
+    Registro = paste(format(desde, "%m/%Y"), "a", format(hasta, "%m/%Y")),
+    Detecciones = detecciones,
+    `Hectáreas quemadas` = hectareas,
+    `Área quemada` = area_quemada,
+    Reporte = paste0('<a href="', clave, '/">ver</a>')
+  )
+DT::datatable(tabla, escape = FALSE, rownames = FALSE,
+              options = list(dom = "t", ordering = FALSE),
+              caption = paste("Las cuatro plataformas, en orden cronológico de",
+                              "inicio de registro. El orden no es un ranking."))
+```
+
+Las cuatro observan el mismo parque con el mismo método, pero **sus series no
+se suman ni se empalman**. Dos razones distintas lo impiden.
+
+La primera es la **resolución**. MODIS, a bordo de Terra y Aqua, ve el
+territorio en píxeles de aproximadamente un kilómetro; VIIRS lo ve en píxeles
+de 375 metros. Un sensor más fino detecta más fuegos y fuegos más pequeños
+sobre exactamente el mismo terreno, así que una serie que uniera ambos
+mostraría un salto en 2012 que reflejaría el cambio de instrumento y no el
+régimen de fuego.
+
+La segunda es el **número de satélites**. Suomi-NPP, NOAA-20 y NOAA-21 llevan
+el mismo instrumento VIIRS, con el mismo píxel, pero vuelan separados en la
+órbita y pasan sobre el parque a horas distintas. Cada uno añade oportunidades
+de observación: un fuego encendido entre dos pasos aparece en uno y no en el
+otro. Sumarlos produciría saltos en 2018 y 2024 que solo dirían cuántos
+satélites hay en órbita.
+
+```{r}
+#| label: figura-comparativa
+mensuales <- purrr::map(claves, \(k) tar_read_raw(paste0("firms_mensual_", k),
+                                                  store = almacen))
+```
+
+![](`r file.path("..", tar_read(fig_series_plataformas, store = almacen))`)
+
+La escalera es evidente en la figura: cada panel arranca cuando su plataforma
+entró en servicio, y las alturas no son comparables entre paneles. Por eso hay
+cuatro reportes y no uno.
+
+## Por qué importa tener varias
+
+Mantener cuatro series paralelas no es redundancia. Sirve para tres cosas.
+
+**Continuidad.** Las misiones Terra y Aqua, que llevan MODIS, terminan en
+2027. La serie más larga del proyecto —veinticinco años— se corta ahí, y las
+plataformas VIIRS son su relevo. Tenerlas ya procesadas con la misma
+metodología permite que el empalme no se improvise.
+
+**Contraste.** Cuando cuatro instrumentos independientes coinciden en un
+hallazgo, ese hallazgo no es un artefacto de ninguno de ellos. Y cuando
+difieren, la diferencia misma informa: el reporte de MODIS sostenía que buena
+parte de sus detecciones «en interior de bosque» eran un efecto de su
+footprint de más de un kilómetro invadiendo el bosque contiguo, y las
+plataformas VIIRS lo confirmaron al registrar mucho menos fuego de interior.
+
+**Cobertura reciente.** Las series se sirven del procesamiento estándar y, a
+continuación, de los datos en tiempo casi real, que llegan hasta hace pocos
+días. Ese tramo final aparece marcado como provisional en todos los productos:
+sus detecciones se refinan cuando la NASA las reprocesa. `r if (any(resumen$solo_provisional)) "NOAA-21 es un caso aparte: no tiene procesamiento estándar en absoluto, así que **todo** su registro es provisional."`
+
+## Lo que coinciden en mostrar
+
+```{r}
+#| label: hallazgos
+bordes <- purrr::map(claves, \(k) tar_read_raw(paste0("borde_bosque_", k),
+                                               store = almacen))
+hallazgos <- purrr::map(claves, function(k) {
+  resumen_hallazgo_humedales(
+    tar_read_raw(paste0("cobertura_", k), store = almacen),
+    tar_read_raw(paste0("humedales_detecciones_", k), store = almacen))
+})
+pct_abierto  <- purrr::map_dbl(bordes, \(b) b$tabla$pct_detecciones[1])
+pct_borde    <- purrr::map_dbl(bordes, \(b) b$tabla$pct_detecciones[2])
+pct_interior <- purrr::map_dbl(bordes, \(b) b$tabla$pct_detecciones[3])
+pct_humedal  <- purrr::map_dbl(hallazgos, \(h) as.numeric(sub(",", ".", h$pct_en_humedal)))
+azar <- bordes[[1]]$tabla$pct_aleatorio
+```
+
+Cada reporte desarrolla sus propios resultados. Tres conclusiones aparecen en
+los cuatro, y por eso se enuncian aquí como rangos entre plataformas.
+
+**Las quemas del «pastizal» ocurren en la marisma, no en potreros.** El mapa
+global de cobertura clasifica como pastizal buena parte del humedal
+estacional del parque. Cruzando cada detección con el Registro Nacional de
+Humedales del SINAC, entre el **`r rango_entre_plataformas(pct_humedal)` %**
+de las detecciones dominadas por «pastizal» caen dentro de un humedal
+registrado, según la plataforma. El resultado se sostiene con footprints que
+van de un kilómetro a 375 metros, lo que descarta que sea un efecto de la
+superposición gruesa del píxel más grande.
+
+**El fuego no bordea el bosque: lo rodea.** Sobre el mapa, las detecciones
+parecen dibujar el contorno del bloque forestal. Contrastadas contra un modelo
+nulo de puntos aleatorios, ocurren en terreno abierto entre el
+**`r rango_entre_plataformas(pct_abierto)` %** de las veces, frente al
+`r num_es(azar[1])` % que cabría esperar por azar; y la categoría de borde
+reúne entre el `r rango_entre_plataformas(pct_borde)` %, frente al
+`r num_es(azar[2])` % esperado, sin sobrerrepresentación en ninguna
+plataforma. El contorno es una ilusión geométrica: en un parque cuyo bosque
+forma un bloque compacto, cualquier concentración en terreno abierto traza su
+silueta.
+
+**El fuego casi no entra al bosque.** El interior forestal reúne entre el
+**`r rango_entre_plataformas(pct_interior)` %** de las detecciones, contra un
+`r num_es(azar[3])` % esperado por azar. El extremo inferior de ese rango
+corresponde a las plataformas VIIRS y el superior a MODIS, cuya diferencia se
+explica por el tamaño del footprint. El patrón es coherente con quemas en la
+marisma y el pastizal estacionalmente secos, que se detienen al llegar al
+bosque: el bosque seco cerrado retiene humedad y carece de combustible fino
+continuo.
+
+**Limitación común.** El modelo nulo supone que cualquier punto del parque
+tiene la misma probabilidad de arder, lo que ignora la accesibilidad y la
+cercanía a caminos, linderos y cultivos. Descarta la explicación geométrica
+del patrón, pero no identifica la causa de las igniciones.
+
+## Los reportes
+
+```{r}
+#| label: enlaces
+#| output: asis
+for (i in seq_len(nrow(resumen))) {
+  f <- resumen[i, ]
+  cat(sprintf("- **[%s](%s/)** — %s detecciones, de %s a %s. Área quemada: %s.%s\n",
+              f$plataforma, f$clave, num_es(f$detecciones, 0),
+              format(f$desde, "%m/%Y"), format(f$hasta, "%m/%Y"),
+              f$area_quemada,
+              if (f$solo_provisional) " Sin procesamiento estándar: datos provisionales." else ""))
+}
+```
+
+Cada uno incluye mapa animado, video resumen, mapa interactivo con deslizador
+temporal, series y climatología, análisis de cobertura de la tierra y el
+contraste con el modelo nulo de paisaje.
+
+## Fuentes de datos
+
+- **NASA FIRMS** — Fire Information for Resource Management System.
+  Detecciones de fuego activo de MODIS (Collection 6.1) y VIIRS (375 m) en sus
+  versiones de procesamiento estándar y en tiempo casi real.
+  <https://firms.modaps.eosdis.nasa.gov/>.
+- **NASA LP DAAC** — productos mensuales de área quemada a 500 m: MCD64A1
+  v6.1 (MODIS) y VNP64A1 v002 (VIIRS/Suomi-NPP).
+- **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica: áreas
+  silvestres protegidas, Registro Nacional de Humedales y Cobertura Forestal
+  2023. <https://geos1pne.sirefor.go.cr/wfs>.
+- **ESA WorldCover** — cobertura de la tierra 2021 a 10 m.
+  <https://esa-worldcover.org/>.
+
+El código de este proyecto está disponible en
+<https://github.com/incendios-forestales/anomalias-termicas-paloverde>.

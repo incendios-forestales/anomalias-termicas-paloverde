@@ -281,18 +281,29 @@ list(
                format = "file")
   ),
 
+  # --- Figura comparativa de las cuatro plataformas ------------------------
+  tar_target(fig_series_plataformas,
+             grafico_series_plataformas(
+               list(firms_mensual_modis, firms_mensual_viirs,
+                    firms_mensual_noaa20, firms_mensual_noaa21),
+               list(etiquetas_modis, etiquetas_viirs,
+                    etiquetas_noaa20, etiquetas_noaa21),
+               "outputs/figs/series_plataformas.png"),
+             format = "file"),
+
   # --- Reportes Quarto ------------------------------------------------------
   # Se escriben explícitamente: son el elemento menos uniforme del proyecto
   # (su prosa es distinta por definición) y son pocos. tar_quarto solo detecta
   # como dependencias los targets leídos con tar_read() dentro del qmd, no las
   # funciones de R/ que el qmd llama vía tar_source(); de ahí `extra_files`.
-  tar_quarto(reporte_modis, "analysis/index.qmd",
+  tar_quarto(reporte_modis, "analysis/modis.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
                                       full.names = TRUE)),
   tar_target(pagina_modis, {
     reporte_modis
-    file.copy("analysis/index.html", "index.html", overwrite = TRUE)
-    "index.html"
+    dir.create("modis", showWarnings = FALSE)
+    file.copy("analysis/modis.html", "modis/index.html", overwrite = TRUE)
+    "modis/index.html"
   }, format = "file"),
   tar_quarto(reporte_viirs, "analysis/viirs.qmd",
              extra_files = list.files("R", pattern = "[.][Rr]$",
@@ -320,5 +331,18 @@ list(
     dir.create("noaa21", showWarnings = FALSE)
     file.copy("analysis/noaa21.html", "noaa21/index.html", overwrite = TRUE)
     "noaa21/index.html"
+  }, format = "file"),
+
+  # --- Portada: entrada común en la raíz del sitio -------------------------
+  # Conserva la URL raíz ya publicada, que hasta ahora mostraba el reporte de
+  # MODIS. Depende de los targets de las cuatro plataformas porque calcula su
+  # tabla comparativa leyéndolos.
+  tar_quarto(portada, "analysis/portada.qmd",
+             extra_files = list.files("R", pattern = "[.][Rr]$",
+                                      full.names = TRUE)),
+  tar_target(pagina_portada, {
+    portada
+    file.copy("analysis/portada.html", "index.html", overwrite = TRUE)
+    "index.html"
   }, format = "file")
 )

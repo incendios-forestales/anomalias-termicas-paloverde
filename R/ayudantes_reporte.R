@@ -59,3 +59,37 @@ resumen_hallazgo_humedales <- function(cobertura, humedales_detecciones,
     poligono_n = unname(poligono[1])
   )
 }
+
+# Resumen comparativo de las plataformas, para la portada. Lee los targets de
+# cada una y devuelve una fila por plataforma. Las cifras NUNCA se escriben a
+# mano en la prosa: se interpolan desde aquí, de modo que no puedan quedar
+# desfasadas respecto del pipeline.
+resumen_multiplataforma <- function(claves, store) {
+  purrr::map(claves, function(k) {
+    p <- targets::tar_read_raw(paste0("firms_parque_", k), store = store)
+    q <- targets::tar_read_raw(paste0("area_quemada_parque_", k), store = store)
+    r <- targets::tar_read_raw(paste0("rangos_", k), store = store)
+    e <- etiquetas_plataforma(k)
+    fechas <- sf::st_drop_geometry(p)$acq_date
+    tibble::tibble(
+      clave = k,
+      plataforma = e$plataforma,
+      fuentes = e$ids_fuente,
+      desde = min(fechas),
+      hasta = max(fechas),
+      detecciones = nrow(p),
+      hectareas = round(sum(sf::st_drop_geometry(q)$area_ha)),
+      area_quemada = e$etiqueta_ba,
+      solo_provisional = all(r$nivel == "NRT")
+    )
+  }) |>
+    purrr::list_rbind() |>
+    dplyr::arrange(desde)
+}
+
+# Rango entre plataformas de una cifra, ya formateado ("58,2 % y 79,9 %").
+# La portada enuncia los hallazgos comunes como rangos y no repitiendo una
+# cifra por plataforma: cada reporte da la suya.
+rango_entre_plataformas <- function(valores, decimales = 1) {
+  paste(num_es(min(valores), decimales), "y", num_es(max(valores), decimales))
+}
