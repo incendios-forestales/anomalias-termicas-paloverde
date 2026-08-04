@@ -107,6 +107,32 @@ list(
   tar_target(humedales_detecciones_viirs,
              cruzar_con_humedales(firms_parque_viirs, humedales)),
 
+  # Área quemada VIIRS (VNP64A1 v002): heredero de MCD64A1 derivado de
+  # S-NPP; misma tesela, formato y lectura, registro desde 2012-03. Se
+  # empareja con las detecciones VIIRS (nunca se mezclan productos de
+  # sensores distintos en un mismo juego de salidas).
+  tar_target(granulos_ba_viirs,
+             cmr_granulos_mcd64a1(fecha_inicio, fecha_fin,
+                                  short_name = VNP64A1_SHORT_NAME,
+                                  version = VNP64A1_VERSION),
+             cue = tar_cue(mode = "always"), iteration = "group"),
+  tar_target(hdf_ba_viirs,
+             descargar_granulo_mcd64a1(granulos_ba_viirs,
+                                       dir = "data/raw/vnp64a1"),
+             pattern = map(granulos_ba_viirs), format = "file"),
+  tar_target(area_quemada_parque_viirs, extraer_quemas(hdf_ba_viirs, parque)),
+  tar_target(area_quemada_mensual_viirs,
+             agregar_mensual_quemas(area_quemada_parque_viirs,
+                                    rango_meses = range(firms_mensual_viirs$aniomes))),
+  tar_target(cobertura_quemas_viirs,
+             extraer_cobertura_quemas(area_quemada_parque_viirs,
+                                      archivos_worldcover)),
+  tar_target(humedales_quemas_viirs,
+             cruzar_quemas_con_humedales(area_quemada_parque_viirs, humedales)),
+  tar_target(borde_bosque_viirs,
+             contexto_borde(firms_parque_viirs, parque, archivos_worldcover,
+                            bbox_descarga, quemas = area_quemada_parque_viirs)),
+
   # --- Área quemada (MCD64A1 v6.1, LP DAAC vía Earthdata) ------------------
   # FIRMS no entrega BA_MODIS como datos (su API de área responde vacío);
   # se usa el producto original. Ver cabecera de R/descarga_mcd64a1.R.
