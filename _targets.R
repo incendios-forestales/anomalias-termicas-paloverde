@@ -550,6 +550,28 @@ list(
                                 etiquetas_noaa20$fuente_fig, etiquetas_noaa20$etiqueta_ba),
              format = "file"),
 
+  # --- Sondeo de la plataforma VIIRS NOAA-21 --------------------------------
+  # Cadena mínima, sin productos ni reporte: NOAA-21 solo existe en tiempo casi
+  # real (nunca ha tenido procesamiento estándar) y su registro arranca en
+  # 2024. Se descarga primero para medir cuántas detecciones quedan DENTRO del
+  # parque antes de comprometer un juego completo: el bbox de descarga incluye
+  # la quema agrícola del valle del Tempisque y no es proxy del parque.
+  tar_target(rangos_noaa21,
+             rangos_plataforma("noaa21", fecha_inicio, fecha_fin),
+             cue = tar_cue(mode = "always")),
+  tar_target(fragmentos_noaa21, construir_fragmentos_multi(rangos_noaa21),
+             iteration = "group"),
+  tar_target(
+    csv_fragmentos_noaa21,
+    descargar_firms_fragmento(fragmentos_noaa21, bbox_descarga),
+    pattern = map(fragmentos_noaa21),
+    format = "file"
+  ),
+  tar_target(firms_crudo_noaa21,   leer_y_unir_csv(csv_fragmentos_noaa21, rangos_noaa21)),
+  tar_target(firms_puntos_noaa21,  a_sf_puntos(firms_crudo_noaa21)),
+  tar_target(firms_parque_noaa21,  recortar_al_parque(firms_puntos_noaa21, parque)),
+  tar_target(firms_mensual_noaa21, agregar_mensual(firms_parque_noaa21, rangos_noaa21)),
+
   # --- Reporte Quarto → index.html en la raíz (GitHub Pages) ---------------
   # El .qmd llama funciones de R/ directamente (crear_mapa_temporal,
   # crear_grafico_cobertura, ...) que carga con tar_source(). tar_quarto solo
