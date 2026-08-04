@@ -9,17 +9,25 @@ con deslizador temporal, gráficos estadísticos interactivos y tablas.
 
 Cada sensor se procesa por separado y tiene su propio juego de productos:
 
-| Sensor | Fuego activo | Área quemada | Registro | Productos |
+| Plataforma | Fuego activo | Área quemada | Registro | Productos |
 |---|---|---|---|---|
 | MODIS (Terra/Aqua, ~1 km) | `MODIS_SP` | MCD64A1 v6.1 | desde 2001 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/) |
 | VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` | VNP64A1 v002 | desde 2012 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/viirs/) |
+| VIIRS (NOAA-20, 375 m) | `VIIRS_NOAA20_SP` | VNP64A1 (de S-NPP)¹ | desde 2018 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa20/) |
+
+¹ NOAA-20 no tiene producto de área quemada (`VJ164A1` no está publicado en
+CMR), así que sus productos se acompañan del único de la familia VIIRS,
+VNP64A1 de Suomi-NPP, recortado a su ventana temporal y **rotulado como tal**
+en toda figura, tabla y leyenda donde aparece.
 
 Las series **no se suman ni se empalman**: VIIRS detecta muchos más fuegos que
-MODIS sobre el mismo territorio, así que unirlas produciría un salto
-artificial en 2012 que reflejaría el cambio de instrumento y no el régimen de
-fuego. VIIRS importa como continuidad —Terra y Aqua terminan en 2027— y como
-contraste independiente: su footprint más pequeño permite distinguir qué
-hallazgos son propiedades del fuego y cuáles artefactos del tamaño del píxel.
+MODIS sobre el mismo territorio, y dos satélites VIIRS observan más veces que
+uno, de modo que unirlas produciría saltos artificiales —en 2012 y en 2018—
+que reflejarían el instrumental disponible y no el régimen de fuego. VIIRS
+importa como continuidad (Terra y Aqua terminan en 2027) y como contraste
+independiente: comparar plataformas permite distinguir qué hallazgos son
+propiedades del fuego y cuáles artefactos del tamaño del píxel o de un
+episodio puntual.
 
 **Productos en línea**: <https://incendios-forestales.github.io/anomalias-termicas-paloverde/>
 
@@ -195,14 +203,13 @@ Los parámetros se editan al inicio de [`_targets.R`](_targets.R):
 | `fecha_inicio` | Inicio del período | `2001-01-01` |
 | `fecha_fin` | Fin del período (se recorta a lo disponible) | `2100-01-01` (= todo lo disponible) |
 | `fuente_firms` | Producto de FIRMS de la cadena MODIS | `MODIS_SP` |
-| `fuente_firms_viirs` | Producto de FIRMS de la cadena VIIRS | `VIIRS_SNPP_SP` |
+| `fuente_firms_viirs` | Producto de FIRMS de la cadena Suomi-NPP | `VIIRS_SNPP_SP` |
+| `fuente_firms_noaa20` | Producto de FIRMS de la cadena NOAA-20 | `VIIRS_NOAA20_SP` |
 
-Cada sensor tiene su propia cadena de targets, con sufijo `_viirs` en la de
-VIIRS, y produce su propio juego de salidas: las detecciones de sensores
-distintos **no se suman** (VIIRS, con píxel de 375 m, detecta muchos más
-fuegos que MODIS con ~1 km, de modo que una serie combinada mostraría un
-salto artificial en 2012). Al agregar una tercera fuente conviene migrar
-estas cadenas a `tarchetypes::tar_map`.
+Cada plataforma tiene su propia cadena de targets —sufijos `_viirs` y
+`_noaa20`— y produce su propio juego de salidas, que nunca se suman entre sí
+(ver la tabla de la introducción). Con tres cadenas ya explícitas, agregar una
+cuarta fuente es el momento de migrarlas a `tarchetypes::tar_map`.
 
 Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 área quemada) en [`R/constantes.R`](R/constantes.R).
@@ -214,8 +221,9 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 ├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
 │                       #   cobertura de la tierra, contexto paisajístico,
 │                       #   visualización y tablas
-├── analysis/index.qmd  # reporte MODIS  → index.html (GitHub Pages)
-├── analysis/viirs.qmd  # reporte VIIRS  → viirs/index.html
+├── analysis/index.qmd  # reporte MODIS    → index.html (GitHub Pages)
+├── analysis/viirs.qmd  # reporte S-NPP    → viirs/index.html
+├── analysis/noaa20.qmd # reporte NOAA-20  → noaa20/index.html
 ├── data/raw/           # caché de datos crudos (no versionada)
 ├── outputs/            # figuras, mapas y tablas generados (MODIS en la raíz
 │                       #   de cada subdirectorio; VIIRS en su carpeta viirs/)
@@ -236,16 +244,18 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 
 ## Trabajo futuro
 
-- Incorporar las fuentes de FIRMS que faltan: MODIS_NRT y las plataformas
-  VIIRS restantes (NOAA-20 desde 2018, NOAA-21 solo en tiempo casi real). Se
-  mantendrían como series separadas: NOAA-20 duplica las oportunidades de
-  observación de Suomi-NPP a partir de 2018, y además carece de producto de
-  área quemada (VJ164A1 no está publicado). También queda pendiente empalmar
-  la cola NRT de cada sensor a su serie SP, deduplicando el traslape.
-- Comparar formalmente MODIS y VIIRS en el traslape 2012–presente (y MCD64A1
-  con VNP64A1), en vez de solo publicarlos lado a lado: cuantificar cuánto del
-  salto entre sensores es resolución y cuánto hora de paso, de cara al fin de
-  las misiones Terra y Aqua en 2027.
+- Incorporar las fuentes de FIRMS que faltan: los productos en tiempo casi
+  real (`MODIS_NRT`, `VIIRS_*_NRT`), empalmando la cola NRT de cada plataforma
+  a su serie estándar y deduplicando el traslape, y NOAA-21, que hoy **solo**
+  existe en NRT (desde 2024-01) y por eso no tiene aún una cadena propia.
+- Comparar formalmente las tres plataformas en sus traslapes, en vez de solo
+  publicarlas lado a lado: cuantificar cuánto de la diferencia entre series es
+  resolución, cuánto hora de paso y cuánto episodios puntuales. El reporte de
+  NOAA-20 muestra por qué hace falta: casi toda su ventaja aparente sobre
+  Suomi-NPP proviene de que su registro llega un mes más lejos y ese mes
+  (mayo de 2026) concentró un episodio grande.
+- Vigilar el fin de las misiones Terra y Aqua en 2027 y decidir cuál serie
+  pasa a ser la de referencia del proyecto.
 - Aprovechar las bandas `Burn Date Uncertainty` y `QA` de los productos de
   área quemada.
 - Revisar el hueco de 2024 en VIIRS_SNPP_SP (cero detecciones ese año frente a

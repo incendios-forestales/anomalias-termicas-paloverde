@@ -25,6 +25,7 @@ Rplots.pdf
 .quarto/
 analysis/index.html
 analysis/viirs.html
+analysis/noaa20.html
 
 .DS_Store
 Thumbs.db

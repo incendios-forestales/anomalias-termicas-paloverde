@@ -32,7 +32,9 @@ análogo del [reporte basado en MODIS](../), con la misma metodología y los
 mismos productos, pero con un instrumento distinto: los datos provienen del
 producto **VIIRS_SNPP_SP** (procesamiento estándar) del sistema
 [FIRMS](https://firms.modaps.eosdis.nasa.gov/) de la NASA y el área quemada
-del producto **VNP64A1**.
+del producto **VNP64A1**. Existe además un
+[tercer reporte con el VIIRS de NOAA-20](../noaa20/), el mismo instrumento en
+otra plataforma, con registro desde 2018.
 
 Las dos series se publican por separado y **no deben sumarse ni empalmarse**:
 VIIRS observa con un píxel de 375 m frente al de ~1 km de MODIS, de modo que
@@ -395,8 +397,8 @@ pero no identifica la causa de las igniciones.
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
   *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
 
-La versión de este análisis basada en MODIS, con el registro completo desde
-2001, está disponible [aquí](../).
+Los reportes análogos: [MODIS](../) (desde 2001) y
+[VIIRS en NOAA-20](../noaa20/) (desde 2018).
 
 El código de este análisis está disponible en
 <https://github.com/incendios-forestales/anomalias-termicas-paloverde>.
