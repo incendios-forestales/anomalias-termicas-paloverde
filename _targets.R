@@ -311,5 +311,14 @@ list(
     dir.create("noaa20", showWarnings = FALSE)
     file.copy("analysis/noaa20.html", "noaa20/index.html", overwrite = TRUE)
     "noaa20/index.html"
+  }, format = "file"),
+  tar_quarto(reporte_noaa21, "analysis/noaa21.qmd",
+             extra_files = list.files("R", pattern = "[.][Rr]$",
+                                      full.names = TRUE)),
+  tar_target(pagina_noaa21, {
+    reporte_noaa21
+    dir.create("noaa21", showWarnings = FALSE)
+    file.copy("analysis/noaa21.html", "noaa21/index.html", overwrite = TRUE)
+    "noaa21/index.html"
   }, format = "file")
 )

@@ -395,8 +395,9 @@ pero no identifica la causa de las igniciones.
   v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
   *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
 
-Los reportes análogos: [MODIS](../) (desde 2001) y
-[VIIRS en NOAA-20](../noaa20/) (desde 2018).
+Los reportes análogos: [MODIS](../) (desde 2001),
+[VIIRS en NOAA-20](../noaa20/) (desde 2018) y
+[VIIRS en NOAA-21](../noaa21/) (desde 2024).
 
 El código de este análisis está disponible en
 <https://github.com/incendios-forestales/anomalias-termicas-paloverde>.

@@ -37,8 +37,8 @@ límite del parque del
 
 Existen dos reportes análogos, con los mismos productos y metodología, basados
 en el sensor VIIRS (375 m): uno en la plataforma
-[Suomi-NPP](viirs/) (desde 2012) y otro en
-[NOAA-20](noaa20/) (desde 2018). Las series de cada plataforma se publican por
+[Suomi-NPP](viirs/) (desde 2012), otro en [NOAA-20](noaa20/) (desde 2018)
+y otro en [NOAA-21](noaa21/) (desde 2024). Las series de cada plataforma se publican por
 separado y no deben sumarse: VIIRS detecta muchos más fuegos que MODIS sobre
 el mismo territorio, y dos satélites observan más veces que uno, así que
 unirlas produciría saltos artificiales —en 2012 y en 2018— que reflejarían el
