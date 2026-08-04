@@ -24,6 +24,7 @@ Rplots.pdf
 *_files/
 .quarto/
 analysis/index.html
+analysis/viirs.html
 
 .DS_Store
 Thumbs.db

@@ -37,3 +37,25 @@ ayudantes_borde <- function(borde, paisaje, cobertura, cobertura_quemas) {
     )
   )
 }
+
+# Cifras del hallazgo "las quemas del pastizal ocurren en la marisma": cuántas
+# detecciones tienen `clase` como cobertura dominante, qué porcentaje cae en
+# humedal registrado, cuánto del footprint cubre el humedal en promedio y
+# cuántas detecciones concentra el polígono más frecuente del registro (el
+# sector estuarino rotulado "Manglar" en el caso de Palo Verde). Se calculan
+# en vez de escribirse en la prosa: cambian con la fuente y al ampliar el
+# registro. Devuelve números formateados en español, salvo los conteos.
+resumen_hallazgo_humedales <- function(cobertura, humedales_detecciones,
+                                       clase_objetivo = "Pastizal") {
+  cruce <- clase_dominante(cobertura) |>
+    dplyr::left_join(humedales_detecciones, by = "id_deteccion")
+  objetivo <- cruce[cruce$clase == clase_objetivo, ]
+  poligono <- sort(table(cruce$nom_hum[cruce$en_humedal]), decreasing = TRUE)
+  list(
+    n = nrow(objetivo),
+    pct_en_humedal = num_es(100 * mean(objetivo$en_humedal)),
+    pct_footprint = num_es(100 * mean(objetivo$fraccion_humedal), 0),
+    poligono_nombre = names(poligono)[1],
+    poligono_n = unname(poligono[1])
+  )
+}

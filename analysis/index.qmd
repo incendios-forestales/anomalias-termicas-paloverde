@@ -33,6 +33,13 @@ sistema [FIRMS](https://firms.modaps.eosdis.nasa.gov/) de la NASA, y el
 límite del parque del
 [WFS del SINAC](https://geos1pne.sirefor.go.cr/wfs).
 
+Existe un [reporte análogo basado en el sensor VIIRS](viirs/) (Suomi-NPP,
+375 m, desde 2012), con los mismos productos y metodología. Las series de
+ambos sensores se publican por separado y no deben sumarse: VIIRS detecta
+muchos más fuegos que MODIS sobre el mismo territorio, así que unirlas
+produciría un salto artificial en 2012 que reflejaría el cambio de
+instrumento y no el régimen de fuego.
+
 ```{r}
 #| label: datos
 firms_parque <- tar_read(firms_parque, store = almacen)

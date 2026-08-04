@@ -1,12 +1,25 @@
 # Anomalías térmicas en el Parque Nacional Palo Verde
 
 Pipeline reproducible en R que descarga las anomalías térmicas (detecciones de
-fuego activo) del producto **MODIS_SP** de [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/)
-y el **área quemada** mensual del producto **MCD64A1** (NASA LP DAAC)
-para el **Parque Nacional Palo Verde** (Costa Rica), caracteriza la **cobertura
-de la tierra** en la que ocurren y genera un **mapa animado a través del
-tiempo**, un mapa interactivo con deslizador temporal, gráficos estadísticos
-interactivos y tablas.
+fuego activo) de [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) y el
+**área quemada** mensual de NASA LP DAAC para el **Parque Nacional Palo
+Verde** (Costa Rica), caracteriza la **cobertura de la tierra** en la que
+ocurren y genera un **mapa animado a través del tiempo**, un mapa interactivo
+con deslizador temporal, gráficos estadísticos interactivos y tablas.
+
+Cada sensor se procesa por separado y tiene su propio juego de productos:
+
+| Sensor | Fuego activo | Área quemada | Registro | Productos |
+|---|---|---|---|---|
+| MODIS (Terra/Aqua, ~1 km) | `MODIS_SP` | MCD64A1 v6.1 | desde 2001 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/) |
+| VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` | VNP64A1 v002 | desde 2012 | [reporte](https://incendios-forestales.github.io/anomalias-termicas-paloverde/viirs/) |
+
+Las series **no se suman ni se empalman**: VIIRS detecta muchos más fuegos que
+MODIS sobre el mismo territorio, así que unirlas produciría un salto
+artificial en 2012 que reflejaría el cambio de instrumento y no el régimen de
+fuego. VIIRS importa como continuidad —Terra y Aqua terminan en 2027— y como
+contraste independiente: su footprint más pequeño permite distinguir qué
+hallazgos son propiedades del fuego y cuáles artefactos del tamaño del píxel.
 
 **Productos en línea**: <https://incendios-forestales.github.io/anomalias-termicas-paloverde/>
 
@@ -181,10 +194,18 @@ Los parámetros se editan al inicio de [`_targets.R`](_targets.R):
 |---|---|---|
 | `fecha_inicio` | Inicio del período | `2001-01-01` |
 | `fecha_fin` | Fin del período (se recorta a lo disponible) | `2100-01-01` (= todo lo disponible) |
-| `fuente_firms` | Producto de FIRMS | `MODIS_SP` |
+| `fuente_firms` | Producto de FIRMS de la cadena MODIS | `MODIS_SP` |
+| `fuente_firms_viirs` | Producto de FIRMS de la cadena VIIRS | `VIIRS_SNPP_SP` |
 
-Constantes adicionales (buffer de descarga, tamaño de fragmento, fuentes
-futuras) en [`R/constantes.R`](R/constantes.R).
+Cada sensor tiene su propia cadena de targets, con sufijo `_viirs` en la de
+VIIRS, y produce su propio juego de salidas: las detecciones de sensores
+distintos **no se suman** (VIIRS, con píxel de 375 m, detecta muchos más
+fuegos que MODIS con ~1 km, de modo que una serie combinada mostraría un
+salto artificial en 2012). Al agregar una tercera fuente conviene migrar
+estas cadenas a `tarchetypes::tar_map`.
+
+Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
+área quemada) en [`R/constantes.R`](R/constantes.R).
 
 ## Estructura del repositorio
 
@@ -193,9 +214,11 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 ├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
 │                       #   cobertura de la tierra, contexto paisajístico,
 │                       #   visualización y tablas
-├── analysis/index.qmd  # reporte Quarto → index.html (GitHub Pages)
+├── analysis/index.qmd  # reporte MODIS  → index.html (GitHub Pages)
+├── analysis/viirs.qmd  # reporte VIIRS  → viirs/index.html
 ├── data/raw/           # caché de datos crudos (no versionada)
-├── outputs/            # figuras, mapas y tablas generados
+├── outputs/            # figuras, mapas y tablas generados (MODIS en la raíz
+│                       #   de cada subdirectorio; VIIRS en su carpeta viirs/)
 ├── Dockerfile          # rocker/geospatial + paquetes del proyecto
 ├── docker-compose.yml  # RStudio Server (puerto 8787)
 └── renv.lock           # versiones fijadas de paquetes
@@ -205,23 +228,29 @@ futuras) en [`R/constantes.R`](R/constantes.R).
 
 | Fuente | Datos | Licencia/atribución |
 |---|---|---|
-| [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Anomalías térmicas MODIS Collection 6.1 (MODIS_SP), DOI: 10.5067/FIRMS/MODIS/MCD14ML | Acceso abierto; se agradece atribución a NASA FIRMS |
-| [NASA LP DAAC](https://lpdaac.usgs.gov/) | Área quemada mensual MCD64A1 v6.1 (500 m), DOI: 10.5067/MODIS/MCD64A1.061 | Acceso abierto con Earthdata Login; se agradece atribución a NASA LP DAAC |
+| [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Anomalías térmicas MODIS Collection 6.1 (MODIS_SP), DOI: 10.5067/FIRMS/MODIS/MCD14ML, y VIIRS 375 m de Suomi-NPP (VIIRS_SNPP_SP), DOI: 10.5067/VIIRS/VNP14IMG.002 | Acceso abierto; se agradece atribución a NASA FIRMS |
+| [NASA LP DAAC](https://lpdaac.usgs.gov/) | Área quemada mensual MCD64A1 v6.1 (500 m), DOI: 10.5067/MODIS/MCD64A1.061, y VNP64A1 v002 (VIIRS/NPP, 500 m), DOI: 10.5067/VIIRS/VNP64A1.002 | Acceso abierto con Earthdata Login; se agradece atribución a NASA LP DAAC |
 | [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde, capa oficial 1:5000 publicada en 2019 (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales, actualización 2016–2018 (`PNE:registro_nacional_humedales`), y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura de la tierra 2021 a 10 m (v200), DOI: 10.5281/zenodo.7254221 | CC BY 4.0; atribución a ESA WorldCover |
 | [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | Modelo de elevación (formato Terrarium, zoom 13) para el relieve del video | Datos abiertos en AWS; atribución a Mapzen y las fuentes del DEM (SRTM, NASA) |
 
 ## Trabajo futuro
 
-- Incorporar otras fuentes de FIRMS: MODIS_NRT y VIIRS (SNPP/NOAA-20/NOAA-21).
-  La capa de descarga ya está parametrizada por `data_id` (ver `FUENTES_FIRMS`
-  en `R/constantes.R`). Cobra urgencia porque las misiones Terra y Aqua
-  terminan en 2027 y VIIRS es su continuidad: las detecciones de distintos
-  sensores **no deben sumarse** entre sí. (El área quemada `BA_MODIS` se
-  descartó como fuente FIRMS: su API la acepta pero responde vacío; ya se
-  integra desde el producto original MCD64A1.)
-- Aprovechar las bandas `Burn Date Uncertainty` y `QA` de MCD64A1, e integrar
-  el producto VIIRS de área quemada (VNP64A1) como continuidad post-2027.
+- Incorporar las fuentes de FIRMS que faltan: MODIS_NRT y las plataformas
+  VIIRS restantes (NOAA-20 desde 2018, NOAA-21 solo en tiempo casi real). Se
+  mantendrían como series separadas: NOAA-20 duplica las oportunidades de
+  observación de Suomi-NPP a partir de 2018, y además carece de producto de
+  área quemada (VJ164A1 no está publicado). También queda pendiente empalmar
+  la cola NRT de cada sensor a su serie SP, deduplicando el traslape.
+- Comparar formalmente MODIS y VIIRS en el traslape 2012–presente (y MCD64A1
+  con VNP64A1), en vez de solo publicarlos lado a lado: cuantificar cuánto del
+  salto entre sensores es resolución y cuánto hora de paso, de cara al fin de
+  las misiones Terra y Aqua en 2027.
+- Aprovechar las bandas `Burn Date Uncertainty` y `QA` de los productos de
+  área quemada.
+- Revisar el hueco de 2024 en VIIRS_SNPP_SP (cero detecciones ese año frente a
+  siete de MODIS, con área quemada VNP64A1 no nula): confirmar si es un
+  artefacto del producto o del envejecimiento de Suomi-NPP.
 - Desagregar la clase «Bosque» de WorldCover en los tipos de la Cobertura
   Forestal del SINAC (deciduo, maduro, secundario), que aportan vocabulario
   ecológico local — el bosque deciduo es el bosque seco característico del
