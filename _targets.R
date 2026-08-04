@@ -42,7 +42,8 @@ tar_option_set(
 # NOAA-20 y NOAA-21 toman el de S-NPP porque no existe uno propio.
 plataformas_pipeline <- dplyr::mutate(
   PLATAFORMAS[, c("clave", "etiqueta", "ba_producto")],
-  quemas_origen = rlang::syms(paste0("quemas_", tolower(ba_producto)))
+  quemas_origen = rlang::syms(paste0("quemas_", tolower(ba_producto))),
+  ultimo_ba     = rlang::syms(paste0("ultimo_mes_", tolower(ba_producto)))
 )
 plataformas_pipeline$ba_producto <- NULL
 
@@ -95,6 +96,10 @@ list(
              descargar_granulo_ba(granulos_mcd64a1, "data/raw/mcd64a1"),
              pattern = map(granulos_mcd64a1), format = "file"),
   tar_target(quemas_mcd64a1, extraer_quemas(hdf_mcd64a1, parque)),
+  # Frontera de PUBLICACIÓN del producto, tomada de la lista de granulos y no
+  # de los píxeles: un mes publicado sin fuego en el parque no aporta píxeles
+  # y correría la frontera hacia atrás.
+  tar_target(ultimo_mes_mcd64a1, max(granulos_mcd64a1$aniomes)),
   tar_target(granulos_vnp64a1,
              cmr_granulos_ba(fecha_inicio, fecha_fin,
                              VNP64A1_SHORT_NAME, VNP64A1_VERSION),
@@ -103,6 +108,7 @@ list(
              descargar_granulo_ba(granulos_vnp64a1, "data/raw/vnp64a1"),
              pattern = map(granulos_vnp64a1), format = "file"),
   tar_target(quemas_vnp64a1, extraer_quemas(hdf_vnp64a1, parque)),
+  tar_target(ultimo_mes_vnp64a1, max(granulos_vnp64a1$aniomes)),
 
   # --- Una cadena por plataforma -------------------------------------------
   # Todo lo que sigue existe cuatro veces, con el sufijo de la clave. El área
@@ -134,7 +140,8 @@ list(
                recortar_quemas_al_periodo(quemas_origen, firms_mensual)),
     tar_target(area_quemada_mensual,
                agregar_mensual_quemas(area_quemada_parque,
-                                      rango_meses = range(firms_mensual$aniomes))),
+                                      rango_meses = range(firms_mensual$aniomes),
+                                      hasta = ultimo_ba)),
     tar_target(cobertura_quemas,
                extraer_cobertura_quemas(area_quemada_parque,
                                         archivos_worldcover)),
