@@ -29,26 +29,27 @@ FIRMS_BASE <- "https://firms.modaps.eosdis.nasa.gov/api"
 # este valor y cambiarlo invalida la caché completa.
 FIRMS_DIAS_FRAGMENTO <- 5L
 
-# Origen fijo de la rejilla de fragmentos (inicio del registro MODIS_SP).
-# Los límites de fragmento se calculan como ORIGEN_GRILLA + k * FIRMS_DIAS_FRAGMENTO,
-# independientes del rango solicitado: ampliar el rango solo agrega fragmentos
-# en los extremos sin invalidar los ya descargados.
+# Origen fijo de la rejilla de fragmentos (coincide con el inicio del registro
+# MODIS_SP, la fuente más antigua). La rejilla es COMÚN a todas las fuentes:
+# los límites de fragmento se calculan como ORIGEN_GRILLA + k * FIRMS_DIAS_FRAGMENTO,
+# independientes del rango solicitado, y clamp_rango() recorta el arranque de
+# las fuentes más recientes (p. ej. VIIRS_SNPP_SP desde 2012) al primer
+# fragmento que las contiene. Ampliar el rango solo agrega fragmentos en los
+# extremos sin invalidar los ya descargados.
 ORIGEN_GRILLA <- as.Date("2000-11-01")
 
-# Buffer (km) alrededor del parque para el bbox de descarga: la geolocalización
-# de MODIS es ~1 km, así se capturan detecciones de borde; el análisis recorta
-# estrictamente al polígono.
+# Buffer (km) alrededor del parque para el bbox de descarga: cubre de sobra la
+# geolocalización de los sensores (~1 km en MODIS, ~375 m en VIIRS) para
+# capturar detecciones de borde; el análisis recorta estrictamente al polígono.
 FIRMS_BUFFER_KM <- 5
 
-# Fuentes de FIRMS. Para incorporar otras (MODIS_NRT, VIIRS_*) basta
-# activarlas aquí y extender el grafo de targets con las fuentes activas.
-# El área quemada (BA_MODIS) NO se obtiene de FIRMS: su API la acepta pero
-# responde vacío siempre; se usa el producto original MCD64A1 (ver abajo).
-FUENTES_FIRMS <- data.frame(
-  data_id = c("MODIS_SP", "MODIS_NRT", "VIIRS_SNPP_SP", "VIIRS_SNPP_NRT",
-              "VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"),
-  activa  = c(TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE)
-)
+# Fuentes de FIRMS: cada fuente activa es una cadena explícita de targets en
+# _targets.R (hoy MODIS_SP y VIIRS_SNPP_SP; con una tercera fuente conviene
+# migrar a tarchetypes::tar_map). La capa de descarga ya separa la caché por
+# data_id (data/raw/firms/<data_id>/).
+# El área quemada (BA_MODIS/BA_VIIRS) NO se obtiene de FIRMS: su API acepta
+# esas colecciones pero responde vacío siempre; se usan los productos
+# originales MCD64A1 y VNP64A1 (ver abajo).
 
 # Clave del API de FIRMS, desde .Renviron (no versionado; ver .Renviron.example)
 firms_map_key <- function() {
@@ -61,12 +62,18 @@ firms_map_key <- function() {
   clave
 }
 
-# --- LP DAAC / MCD64A1 (área quemada) ---
+# --- LP DAAC (área quemada: MCD64A1 y VNP64A1) ---
 # Búsqueda de granulos en el catálogo CMR de NASA (pública, sin credenciales).
 CMR_BASE <- "https://cmr.earthdata.nasa.gov/search"
 
 MCD64A1_SHORT_NAME <- "MCD64A1"
 MCD64A1_VERSION    <- "061"
+
+# Heredero de MCD64A1 derivado de VIIRS S-NPP (registro desde 2012-03); mismo
+# algoritmo, rejilla sinusoidal y formato HDF4. Verificado contra CMR el
+# 2026-08-04: versión "002", descargas .hdf en lp-prod-protected.
+VNP64A1_SHORT_NAME <- "VNP64A1"
+VNP64A1_VERSION    <- "002"
 
 # Tesela de la rejilla sinusoidal MODIS que cubre el PN Palo Verde
 # (10.35 N, -85.35 O). extraer_quemas() verifica en tiempo de ejecución que

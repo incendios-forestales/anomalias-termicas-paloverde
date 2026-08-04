@@ -1,6 +1,9 @@
-# Descubrimiento y descarga de granulos MCD64A1 v6.1 (área quemada mensual
-# MODIS, 500 m): el complemento de "área quemada" de las detecciones de fuego
-# activo de FIRMS.
+# Descubrimiento y descarga de granulos de área quemada mensual (500 m) de
+# LP DAAC: el complemento de "área quemada" de las detecciones de fuego
+# activo de FIRMS. Sirve tanto para MCD64A1 v6.1 (MODIS) como para VNP64A1
+# v002 (VIIRS S-NPP): mismo algoritmo, misma rejilla sinusoidal, mismo
+# formato HDF4-EOS2 y mismo patrón de URL; el producto se elige con los
+# argumentos short_name/version de cmr_granulos_mcd64a1().
 #
 # Por qué NO se usa el API de FIRMS para el área quemada: FIRMS lista BA_MODIS
 # en data_availability y la muestra como capa WMS en su visor, pero su API de
@@ -63,10 +66,12 @@ cmr_solicitar <- function(url, search_after = NULL, max_intentos = 5L,
 # con la clave de grupo `aniomes` (estable ante meses nuevos; si LP DAAC
 # reprocesa un granulo cambia su nombre/URL y solo esa rama se invalida).
 cmr_granulos_mcd64a1 <- function(fecha_inicio, fecha_fin,
-                                 tesela = TESELA_MCD64A1) {
+                                 tesela = TESELA_MCD64A1,
+                                 short_name = MCD64A1_SHORT_NAME,
+                                 version = MCD64A1_VERSION) {
   url <- glue::glue(
     "{CMR_BASE}/granules.json",
-    "?short_name={MCD64A1_SHORT_NAME}&version={MCD64A1_VERSION}",
+    "?short_name={short_name}&version={version}",
     "&readable_granule_name=*{tesela}*",
     "&options[readable_granule_name][pattern]=true",
     "&page_size=2000&sort_key=start_date"
@@ -82,7 +87,7 @@ cmr_granulos_mcd64a1 <- function(fecha_inicio, fecha_fin,
     if (is.null(search_after)) break
   }
   if (length(paginas) == 0) {
-    stop("CMR no devolvió granulos MCD64A1 para la tesela ", tesela,
+    stop("CMR no devolvió granulos ", short_name, " para la tesela ", tesela,
          "; verifique TESELA_MCD64A1.", call. = FALSE)
   }
 
@@ -106,8 +111,8 @@ cmr_granulos_mcd64a1 <- function(fecha_inicio, fecha_fin,
                   aniomes <= fecha_fin)
 
   if (nrow(granulos) == 0) {
-    stop("Ningún granulo MCD64A1 en el rango ", fecha_inicio, " a ", fecha_fin,
-         ".", call. = FALSE)
+    stop("Ningún granulo ", short_name, " en el rango ", fecha_inicio, " a ",
+         fecha_fin, ".", call. = FALSE)
   }
   granulos |>
     dplyr::group_by(aniomes) |>
