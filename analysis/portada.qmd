@@ -21,7 +21,7 @@ execute:
 library(targets)
 almacen <- here::here("_targets")
 tar_source(here::here("R"))
-claves <- c("modis", "viirs", "noaa20", "noaa21")
+claves <- c("modis", "snpp", "noaa20", "noaa21")
 resumen <- resumen_multiplataforma(claves, almacen)
 ```
 

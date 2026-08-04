@@ -32,7 +32,7 @@ registradas por el sensor **VIIRS** a bordo del satélite **NOAA-20** en el
 [Parque Nacional Palo Verde](https://www.sinac.go.cr/), Costa Rica. Es el
 tercero de una serie de reportes análogos, junto con los de
 [MODIS](../modis/) (Terra y Aqua, desde 2001) y
-[VIIRS en Suomi-NPP](../viirs/) (desde 2012): misma metodología, mismos
+[VIIRS en Suomi-NPP](../snpp/) (desde 2012): misma metodología, mismos
 productos, distinta plataforma de observación.
 
 NOAA-20 lleva **el mismo instrumento** que Suomi-NPP —VIIRS, con píxel de
@@ -316,7 +316,7 @@ cercanía a caminos y linderos.
   *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
 
 Los reportes análogos: [MODIS](../modis/) (desde 2001),
-[VIIRS en Suomi-NPP](../viirs/) (desde 2012) y
+[VIIRS en Suomi-NPP](../snpp/) (desde 2012) y
 [VIIRS en NOAA-21](../noaa21/) (desde 2024).
 
 El código de este análisis está disponible en

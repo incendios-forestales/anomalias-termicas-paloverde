@@ -25,7 +25,7 @@
 PLATAFORMAS <- tibble::tribble(
   ~clave,   ~etiqueta,             ~corta,          ~fuente_sp,        ~fuente_nrt,          ~ba_producto, ~ba_etiqueta,     ~ba_creditos,          ~ba_version,
   "modis",  "MODIS (Terra/Aqua)",  "MODIS",         "MODIS_SP",        "MODIS_NRT",          "MCD64A1",    "MCD64A1",        "MCD64A1",             "MCD64A1 v6.1",
-  "viirs",  "VIIRS (Suomi-NPP)",   "VIIRS",         "VIIRS_SNPP_SP",   "VIIRS_SNPP_NRT",     "VNP64A1",    "VNP64A1",        "VNP64A1",             "VNP64A1 v2",
+  "snpp",   "VIIRS (Suomi-NPP)",   "VIIRS S-NPP",   "VIIRS_SNPP_SP",   "VIIRS_SNPP_NRT",     "VNP64A1",    "VNP64A1",        "VNP64A1",             "VNP64A1 v2",
   "noaa20", "VIIRS (NOAA-20)",     "VIIRS NOAA-20", "VIIRS_NOAA20_SP", "VIIRS_NOAA20_NRT",   "VNP64A1",    "VNP64A1, S-NPP", "VNP64A1, Suomi-NPP",  "VNP64A1 v2, Suomi-NPP",
   "noaa21", "VIIRS (NOAA-21)",     "VIIRS NOAA-21", NA,                "VIIRS_NOAA21_NRT",   "VNP64A1",    "VNP64A1, S-NPP", "VNP64A1, Suomi-NPP",  "VNP64A1 v2, Suomi-NPP"
 )

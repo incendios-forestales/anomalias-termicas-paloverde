@@ -1,0 +1,403 @@
+---
+title: "Anomalías térmicas en el Parque Nacional Palo Verde — VIIRS"
+subtitle: "Detecciones del sensor VIIRS (VIIRS_SNPP_SP de NASA FIRMS) y área quemada (VNP64A1)"
+author: "Organización Incendios Forestales"
+date: today
+lang: es
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-title: "Contenido"
+    theme: cosmo
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: configuracion
+library(targets)
+almacen <- here::here("_targets")
+tar_source(here::here("R"))
+# Rótulos de esta plataforma; ver R/plataformas.R
+etq <- etiquetas_plataforma("snpp")
+```
+
+## Introducción
+
+Este reporte presenta las anomalías térmicas (detecciones de fuego activo)
+registradas por el sensor **VIIRS** a bordo del satélite Suomi-NPP en el
+[Parque Nacional Palo Verde](https://www.sinac.go.cr/), Costa Rica. Es el
+análogo del [reporte basado en MODIS](../modis/), con la misma metodología y los
+mismos productos, pero con un instrumento distinto: los datos provienen del
+producto **VIIRS_SNPP_SP** (procesamiento estándar) del sistema
+[FIRMS](https://firms.modaps.eosdis.nasa.gov/) de la NASA y el área quemada
+del producto **VNP64A1**. Existe además un
+[tercer reporte con el VIIRS de NOAA-20](../noaa20/), el mismo instrumento en
+otra plataforma, con registro desde 2018.
+
+Las dos series se publican por separado y **no deben sumarse ni empalmarse**:
+VIIRS observa con un píxel de 375 m frente al de ~1 km de MODIS, de modo que
+detecta muchos más fuegos —y fuegos más pequeños— sobre el mismo territorio.
+Cualquier serie que uniera ambos sensores mostraría un salto artificial en
+2012, cuando VIIRS entra en operación, que sería un cambio de instrumento y no
+un cambio en el régimen de fuego.
+
+El interés de VIIRS es doble. Por un lado es la **continuidad** del registro:
+las misiones Terra y Aqua, que llevan MODIS, terminan en 2027. Por otro, su
+mayor resolución permite contrastar los hallazgos obtenidos con MODIS y
+distinguir cuáles son propiedades del fuego y cuáles artefactos del tamaño del
+píxel.
+
+```{r}
+#| label: datos
+firms_parque <- tar_read(firms_parque_snpp, store = almacen)
+firms_mensual <- tar_read(firms_mensual_snpp, store = almacen)
+area_quemada_parque <- tar_read(area_quemada_parque_snpp, store = almacen)
+area_quemada_mensual <- tar_read(area_quemada_mensual_snpp, store = almacen)
+rango <- range(firms_parque$acq_date)
+```
+
+El período analizado va del **`r format(rango[1], "%d/%m/%Y")`** al
+**`r format(rango[2], "%d/%m/%Y")`**, con un total de
+**`r nrow(firms_parque)`** detecciones dentro del parque. El límite del parque
+proviene de la capa oficial de áreas silvestres protegidas del SINAC (escala
+1:5000, publicada en 2019): está delimitado con una precisión muy superior a
+la de los píxeles VIIRS (375 m en el nadir), así que el recorte no introduce
+error apreciable por la geometría del límite.
+
+## Mapa animado
+
+Detecciones mensuales de anomalías térmicas; el color indica la potencia
+radiativa del fuego (FRP).
+
+![](`r file.path("..", tar_read(anim_gif_snpp, store = almacen))`)
+
+## Video resumen
+
+Resumen mensual en formato de video: detecciones de fuego activo (VIIRS) con
+su estela de los meses recientes y píxeles de área quemada (VNP64A1), sobre el
+relieve del parque teñido por la cobertura de la tierra (WorldCover 2021). Los
+contadores muestran el acumulado desde el inicio del registro y, debajo, el
+mes en curso con sus valores, cada serie por separado: son magnitudes
+complementarias y no sumables.
+
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias_snpp, store = almacen))`"></video>
+
+El cartel estático resume las dos series mensuales del video: los acumulados
+arriba y, en paneles separados, las hectáreas quemadas y las detecciones por
+mes, con el mes máximo de cada serie rotulado.
+
+![](`r file.path("..", tar_read(cartel_resumen_snpp, store = almacen))`){width=540}
+
+## Mapa interactivo
+
+Use el deslizador temporal para explorar las detecciones a través del tiempo;
+cada punto muestra sus atributos al pulsarlo, incluida la cobertura de la
+tierra dominante en su footprint. El botón ⛶ de la esquina superior izquierda
+abre el mapa en pantalla completa.
+
+A diferencia de MODIS, que reporta la confianza de cada detección como un
+porcentaje, VIIRS la entrega en tres categorías —baja, nominal y alta—, y así
+aparece en los popups.
+
+Desde el control de capas pueden apagarse las capas de detecciones y del
+límite del parque —útil para examinar el fondo— y activarse el área quemada
+(píxeles de VNP64A1, con su fecha de quema en el popup), que el deslizador
+filtra igual que las detecciones, la cobertura
+([ESA WorldCover 2021](https://esa-worldcover.org/)) y las capas nacionales
+del SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
+
+```{r}
+#| label: mapa-interactivo
+parque <- tar_read(parque, store = almacen)
+cobertura_mapa <- tar_read(cobertura_snpp, store = almacen)
+worldcover <- tar_read(archivos_worldcover, store = almacen)
+bbox <- tar_read(bbox_descarga, store = almacen)
+humedales <- tar_read(humedales, store = almacen)
+bosque <- tar_read(bosque, store = almacen)
+crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
+                    etq$etiqueta_quemas, humedales, bosque,
+                    quemas = area_quemada_parque)
+```
+
+## Área quemada (VNP64A1)
+
+Las detecciones de fuego activo indican dónde había fuego al paso del
+satélite; el producto complementario **VNP64A1** mapea el **área quemada**:
+para cada píxel de 500 m (~21,5 ha) registra el día en que la superficie quedó
+marcada por el fuego, a partir del cambio persistente de reflectancia. Es el
+heredero directo de MCD64A1 —mismo algoritmo, misma rejilla sinusoidal y misma
+resolución— aplicado a las bandas de VIIRS, y su registro comienza en marzo de
+2012. Igual que con MODIS, FIRMS lista un producto de área quemada
+(`BA_VIIRS`) pero su API no lo entrega como datos, así que el pipeline lo
+descarga del archivo original de la NASA (LP DAAC). El producto se publica con
+uno o dos meses de rezago: su serie puede terminar antes que la de
+detecciones.
+
+Conviene notar una asimetría: mientras que en fuego activo VIIRS aventaja
+claramente a MODIS por su píxel de 375 m, en área quemada **ambos productos
+comparten la resolución de 500 m**. Las diferencias entre MCD64A1 y VNP64A1 no
+vienen del tamaño del píxel sino de la sensibilidad de las bandas y del
+comportamiento del algoritmo.
+
+**Limitación**: la unidad mínima de VNP64A1 es el píxel de 500 m —quemas
+menores pueden no detectarse y la superficie reportada es la del píxel
+completo, no la de la cicatriz interna—, por lo que las hectáreas son una
+estimación gruesa, útil para comparar años y estaciones entre sí.
+
+## Estadísticas
+
+### Serie temporal mensual
+
+Detecciones de fuego activo (arriba) y hectáreas quemadas (abajo), con el eje
+temporal compartido: acerque con la rueda o arrastre una región para explorar
+un período; pase el cursor sobre una barra para ver el detalle del mes.
+
+Las dos series son complementarias y **no sumables**: las detecciones cuentan
+eventos de fuego activo en el momento del sobrevuelo —un mismo incendio genera
+muchas detecciones a lo largo de días—, mientras que el área quemada mide la
+superficie que quedó marcada, contada una sola vez.
+
+```{r}
+#| label: serie-interactiva
+crear_comparacion_series(firms_mensual, area_quemada_mensual,
+                         etq$etiqueta_ba, etq$pie_ambos)
+```
+
+### Climatología mensual (estacionalidad)
+
+Promedios por mes calendario de ambas magnitudes. El promedio de hectáreas de
+los meses más recientes puede estar levemente subestimado por el rezago de
+publicación de VNP64A1.
+
+```{r}
+#| label: climatologia-interactiva
+crear_climatologia_comparada(firms_mensual, area_quemada_mensual,
+                             etq$etiqueta_ba, etq$pie_ambos)
+```
+
+### Resumen anual
+
+Los años sin detecciones muestran el FRP en blanco (no hubo detecciones que
+promediar); 0 hectáreas significa que VNP64A1 no marcó píxeles quemados ese
+año.
+
+```{r}
+#| label: tabla-resumen
+crear_tabla_resumen(firms_parque, etq$fuente_fig, etq$etiqueta_ba,
+                    area_quemada_parque)
+```
+
+Un dato llama la atención en la tabla: **2024 no registra ninguna detección**
+pese a que VNP64A1 sí marca superficie quemada ese año. No es que no hubiera
+fuego —el reporte MODIS sí registra detecciones en 2024—, sino un hueco del
+producto de fuego activo de Suomi-NPP, un satélite que ya excede su vida útil
+de diseño. Es un recordatorio de que la continuidad del registro conviene
+apoyarla en más de una plataforma.
+
+## Cobertura de la tierra
+
+Cada detección VIIRS corresponde a un píxel de 375 m en el nadir (mayor fuera
+de él), por lo que la cobertura se caracteriza sobre el *footprint* completo
+de la detección (una elipse con las dimensiones reales del píxel, columnas
+`scan` × `track`) y no sobre el punto exacto. El footprint mediano de este
+registro ronda 0,2 km², frente a más de 1 km² en MODIS: la atribución de
+cobertura es sustancialmente más precisa, y este es el punto donde más se
+notará la diferencia entre ambos sensores.
+
+**Limitación**: WorldCover describe la cobertura de 2021, mientras que el
+registro de detecciones abarca `r format(rango[1], "%Y")`–`r format(rango[2], "%Y")`;
+los cambios de cobertura en ese período no están representados.
+
+Cada barra se divide además según la detección caiga o no dentro de un humedal
+del [Registro Nacional de Humedales](https://geos1pne.sirefor.go.cr/wfs) del
+SINAC (actualización 2016–2018 del Inventario Nacional de Humedales). El
+humedal no es un tipo de vegetación que compita con *pastizal* o *bosque*,
+sino una condición del sitio: las capas del SINAC inventarían rasgos
+específicos y no cubren todo el territorio, por lo que no pueden sustituir a
+WorldCover como clasificación exhaustiva, pero sí complementarla.
+
+```{r}
+#| label: cobertura-interactiva
+cobertura <- tar_read(cobertura_snpp, store = almacen)
+humedales_detecciones <- tar_read(humedales_detecciones_snpp, store = almacen)
+crear_grafico_cobertura(cobertura, humedales_detecciones, etq$pie_cobertura,
+                        interactivo = TRUE)
+```
+
+El gráfico gemelo muestra las **hectáreas quemadas** según la clase dominante
+del píxel VNP64A1. Aquí la clase se asigna al píxel de 500 m completo —no a un
+footprint elíptico— y aplica la misma limitación de la foto fija de 2021.
+
+```{r}
+#| label: cobertura-quemas-interactiva
+cobertura_quemas <- tar_read(cobertura_quemas_snpp, store = almacen)
+humedales_quemas <- tar_read(humedales_quemas_snpp, store = almacen)
+crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
+                               etq$pie_cobertura_ba, interactivo = TRUE)
+```
+
+### Contraste con el Registro Nacional de Humedales
+
+La clase más frecuente, *pastizal*, merece una advertencia: WorldCover es un
+producto global y clasifica como pastizal buena parte de la marisma del
+parque.
+
+```{r}
+#| label: tabla-contraste
+crear_tabla_contraste(cobertura, humedales_detecciones,
+                      cobertura_quemas, humedales_quemas)
+```
+
+```{r}
+#| label: hallazgo-humedales
+hallazgo <- resumen_hallazgo_humedales(cobertura, humedales_detecciones)
+```
+
+El resultado es el mismo que con MODIS: el **`r hallazgo$pct_en_humedal` %**
+de las `r hallazgo$n` detecciones cuyo footprint domina el *pastizal* de
+WorldCover caen dentro de un humedal registrado, y en promedio el
+**`r hallazgo$pct_footprint` %** del footprint está cubierto por humedal. Esas
+quemas no ocurren en potreros sino en el complejo de humedales del parque, y
+ahora el resultado se sostiene con footprints cinco veces más pequeños, lo que
+descarta que fuera un efecto de la superposición gruesa del píxel MODIS.
+
+**Advertencia sobre la clase de humedal**: el registro asigna una sola clase
+por polígono, y el polígono *`r hallazgo$poligono_nombre`* (4 453 ha,
+clasificado como *Manglar*) cubre casi todo el sector estuarino del parque,
+por lo que concentra `r hallazgo$poligono_n` detecciones. Eso **no** significa
+que esas quemas ocurran en manglar. Dentro de ese polígono, el manglar cubre
+apenas el 11,6 % de la superficie según WorldCover —el 74 % es pastizal— y
+solo el 4,1 % según la propia capa de Cobertura Forestal 2023 del SINAC, que
+sí mapea el manglar como una de sus clases.
+
+Es decir, `clase_hum` describe el tipo de humedal *como sitio* —un complejo
+estuarino cuyo rasgo distintivo es el manglar— y no la cobertura en cada punto
+de su extensión.
+
+## ¿El fuego bordea el bosque o lo rodea?
+
+El reporte MODIS concluye que el fuego no bordea el bosque sino que lo rodea:
+ocurre en las áreas abiertas y, como el bosque forma un bloque compacto, lo
+abierto es justamente lo que lo circunda. Repetir el análisis con VIIRS es una
+prueba exigente, porque el argumento central de aquel reporte era que parte de
+las detecciones atribuidas al interior del bosque eran un artefacto del
+footprint de ~1 km.
+
+```{r}
+#| label: contexto-paisaje
+borde <- tar_read(borde_bosque_snpp, store = almacen)
+paisaje <- tar_read(paisaje_parque, store = almacen)
+# Los ayudantes (R/ayudantes_reporte.R) devuelven el número ya formateado en
+# español (coma decimal); para operar con los valores hay que leerlos de
+# borde$tabla, no de aquí.
+ayudantes <- ayudantes_borde(borde, paisaje, cobertura, cobertura_quemas)
+pct_paisaje <- ayudantes$pct_paisaje
+pct_dominante <- ayudantes$pct_dominante
+pct_ha_dominante <- ayudantes$pct_ha_dominante
+pct_situacion <- ayudantes$pct_situacion
+```
+
+El primer indicio está en la composición: el parque es
+**`r pct_paisaje("Bosque")` %** bosque y **`r pct_paisaje("Pastizal")` %**
+pastizal según WorldCover, pero solo el **`r pct_dominante("Bosque")` %** de
+las detecciones tiene bosque como clase dominante de su footprint, frente al
+**`r pct_dominante("Pastizal")` %** con pastizal. El área quemada apunta en la
+misma dirección: el **`r pct_ha_dominante("Bosque")` %** de las hectáreas
+quemadas cae en píxeles dominados por bosque, contra el
+**`r pct_ha_dominante("Pastizal")` %** en pastizal.
+
+Para separar el "efecto de borde" de la ilusión geométrica se compara cada
+detección contra un modelo nulo: **`r borde$n_aleatorios`** puntos aleatorios
+dentro del parque, es decir, la hipótesis de que el fuego se distribuye como
+el paisaje disponible. De cada punto se calcula la fracción de bosque en
+**`r borde$radio_m` m** a la redonda, que tiende a 1 en el interior del bosque
+y a 0 en terreno abierto; los valores intermedios son justamente los bordes.
+
+```{r}
+#| label: tabla-borde
+crear_tabla_borde(borde)
+```
+
+La tabla contrasta tres repartos: el de las detecciones, el del área quemada
+—medida sobre los centroides de los **`r borde$n_pixeles_quemas`** píxeles de
+VNP64A1 y ponderada por su superficie— y el esperado por azar.
+
+Si los incendios prefirieran el borde, la fila central estaría
+sobrerrepresentada. No lo está: **`r pct_situacion(2, "pct_detecciones")` %**
+de las detecciones contra **`r pct_situacion(2, "pct_aleatorio")` %** esperado
+por azar, una diferencia no significativa (prueba de proporciones,
+*p* = `r num_es(borde$p_borde, 2)`). Lo que sí está fuertemente desplazado son
+los extremos: las detecciones ocurren en terreno abierto casi al doble de lo
+esperado (**`r pct_situacion(1, "pct_detecciones")` %** contra
+**`r pct_situacion(1, "pct_aleatorio")` %**) y en interior de bosque a una
+quinta parte de lo esperado (**`r pct_situacion(3, "pct_detecciones")` %**
+contra **`r pct_situacion(3, "pct_aleatorio")` %**). La mediana de bosque
+circundante es **`r num_es(borde$mediana_detecciones, 2)`** en las detecciones
+y **`r num_es(borde$mediana_aleatorios, 2)`** en los puntos aleatorios.
+
+### VIIRS confirma que el "fuego de interior" era un artefacto del píxel
+
+Aquí aparece el resultado más interesante de repetir el análisis con otro
+sensor. El reporte MODIS encuentra un **16,4 %** de detecciones en interior de
+bosque y argumenta que buena parte de esa cifra es un artefacto: un footprint
+de más de 1 km² centrado en la marisma invade el bosque contiguo y la
+detección termina clasificada como interior forestal. Si esa explicación es
+correcta, un sensor con footprints mucho menores debería registrar bastante
+menos fuego "de interior".
+
+Es exactamente lo que ocurre: con VIIRS el interior de bosque baja al
+**`r pct_situacion(3, "pct_detecciones")` %**, menos de la mitad que con
+MODIS, pese a analizar el mismo parque, el mismo modelo nulo y un período que
+se solapa por completo. La predicción que el reporte MODIS dejó planteada se
+cumple con un instrumento independiente.
+
+El área quemada de VNP64A1 corrobora el cuadro desde un tercer ángulo: el
+**`r pct_situacion(1, "pct_area_quemada")` %** de las hectáreas está en
+terreno abierto y solo el **`r pct_situacion(3, "pct_area_quemada")` %** en
+interior de bosque. La mediana de bosque circundante baja de
+`r num_es(borde$mediana_detecciones, 2)` en las detecciones a
+**`r num_es(borde$mediana_quemas, 3)`** en los píxeles quemados.
+
+La conclusión es la misma que con MODIS y ahora descansa en dos sensores y dos
+productos de área quemada independientes: **el fuego no bordea el bosque, lo
+rodea**. El patrón es coherente con quemas en la marisma y el pastizal
+estacionalmente secos, que se detienen al llegar al bosque, más que con
+incendios de dosel. Para el manejo del parque esto ubica el riesgo en la
+interfaz entre la marisma y el bosque, aunque el fuego mismo no muestre
+preferencia por esa interfaz.
+
+**Limitación**: el modelo nulo supone que cualquier punto del parque tiene la
+misma probabilidad de arder, lo que ignora factores como la accesibilidad o la
+cercanía a caminos y linderos. Descarta la explicación geométrica del patrón,
+pero no identifica la causa de las igniciones.
+
+## Fuentes de datos
+
+- **NASA FIRMS** — Fire Information for Resource Management System, producto
+  VIIRS_SNPP_SP (VIIRS 375 m, Suomi-NPP, procesamiento estándar).
+  <https://firms.modaps.eosdis.nasa.gov/>. Cita sugerida: Schroeder, W., y
+  Giglio, L. (2018). *VIIRS/NPP Thermal Anomalies/Fire 6-Min L2 Swath 375m*,
+  DOI: 10.5067/VIIRS/VNP14IMG.002.
+- **NASA LP DAAC** — producto de área quemada VNP64A1 v002 (VIIRS/NPP,
+  mensual, 500 m), descubierto vía el API CMR de Earthdata. Giglio, L., y
+  Justice, C. (2021). *VNP64A1 VIIRS/NPP Burned Area Monthly L4 Global 500m
+  SIN Grid V002*, DOI: 10.5067/VIIRS/VNP64A1.002.
+- **SINAC** — Sistema Nacional de Áreas de Conservación de Costa Rica. Capas
+  de áreas silvestres protegidas (capa oficial 1:5000, publicada en 2019),
+  Registro Nacional de Humedales (actualización 2016–2018) y Cobertura
+  Forestal 2023, descargadas de su servicio WFS.
+  <https://geos1pne.sirefor.go.cr/wfs>.
+- **ESA WorldCover** — mapa global de cobertura de la tierra 2021 a 10 m,
+  v200. <https://esa-worldcover.org/>. Zanaga, D., et al. (2022).
+  *ESA WorldCover 10 m 2021 v200*, DOI: 10.5281/zenodo.7254221.
+
+Los reportes análogos: [MODIS](../modis/) (desde 2001),
+[VIIRS en NOAA-20](../noaa20/) (desde 2018) y
+[VIIRS en NOAA-21](../noaa21/) (desde 2024).
+
+El código de este análisis está disponible en
+<https://github.com/incendios-forestales/anomalias-termicas-paloverde>.

@@ -12,7 +12,7 @@ Cada sensor se procesa por separado y tiene su propio juego de productos:
 | Plataforma | Fuego activo (FIRMS) | Área quemada | Registro | Reporte |
 |---|---|---|---|---|
 | MODIS (Terra/Aqua, ~1 km) | `MODIS_SP` + `MODIS_NRT` | MCD64A1 v6.1 | desde 2001 | [modis/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/modis/) |
-| VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` + `_NRT` | VNP64A1 v002 | desde 2012 | [viirs/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/viirs/) |
+| VIIRS (Suomi-NPP, 375 m) | `VIIRS_SNPP_SP` + `_NRT` | VNP64A1 v002 | desde 2012 | [snpp/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/snpp/) |
 | VIIRS (NOAA-20, 375 m) | `VIIRS_NOAA20_SP` + `_NRT` | VNP64A1 (de S-NPP)¹ | desde 2018 | [noaa20/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa20/) |
 | VIIRS (NOAA-21, 375 m) | `VIIRS_NOAA21_NRT`² | VNP64A1 (de S-NPP)¹ | desde 2024 | [noaa21/](https://incendios-forestales.github.io/anomalias-termicas-paloverde/noaa21/) |
 
@@ -225,7 +225,7 @@ es agregar una fila.
 Las cuatro cadenas se generan con `tarchetypes::tar_map`, así que los nombres
 de target **no aparecen literalmente** en `_targets.R`: cada target del bloque
 `tar_map` existe cuatro veces con el sufijo de la clave de plataforma. No
-existe `firms_parque`; existen `firms_parque_modis`, `firms_parque_viirs`,
+existe `firms_parque`; existen `firms_parque_modis`, `firms_parque_snpp`,
 `firms_parque_noaa20` y `firms_parque_noaa21`.
 
 ```r
@@ -249,12 +249,12 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 │                       #   visualización y tablas
 ├── analysis/portada.qmd # portada         → index.html (GitHub Pages)
 ├── analysis/modis.qmd   # reporte MODIS   → modis/index.html
-├── analysis/viirs.qmd   # reporte S-NPP   → viirs/index.html
+├── analysis/snpp.qmd    # reporte S-NPP   → snpp/index.html
 ├── analysis/noaa20.qmd  # reporte NOAA-20 → noaa20/index.html
 ├── analysis/noaa21.qmd  # reporte NOAA-21 → noaa21/index.html
 ├── data/raw/           # caché de datos crudos (no versionada)
 ├── outputs/            # figuras, mapas y tablas, en una carpeta por
-│                       #   plataforma: figs/modis/, figs/viirs/, ...
+│                       #   plataforma: figs/modis/, figs/snpp/, ...
 ├── Dockerfile          # rocker/geospatial + paquetes del proyecto
 ├── docker-compose.yml  # RStudio Server (puerto 8787)
 └── renv.lock           # versiones fijadas de paquetes
