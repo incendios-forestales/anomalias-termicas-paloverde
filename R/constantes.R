@@ -75,10 +75,11 @@ MCD64A1_VERSION    <- "061"
 VNP64A1_SHORT_NAME <- "VNP64A1"
 VNP64A1_VERSION    <- "002"
 
-# Tesela de la rejilla sinusoidal MODIS que cubre el PN Palo Verde
+# Tesela de la rejilla sinusoidal MODIS que cubre el PN Palo Verde.
+# Es común a MCD64A1 y VNP64A1: ambos productos usan la misma rejilla
 # (10.35 N, -85.35 O). extraer_quemas() verifica en tiempo de ejecución que
 # la tesela efectivamente cubra el parque.
-TESELA_MCD64A1 <- "h09v07"
+TESELA_SINUSOIDAL <- "h09v07"
 
 # Token de Earthdata Login, desde .Renviron (no versionado). A diferencia de
 # la MAP_KEY de FIRMS, los tokens de Earthdata expiran (~60 días).

@@ -46,10 +46,10 @@ instrumental disponible y no el régimen de fuego.
 
 ```{r}
 #| label: datos
-firms_parque <- tar_read(firms_parque, store = almacen)
-firms_mensual <- tar_read(firms_mensual, store = almacen)
-area_quemada_parque <- tar_read(area_quemada_parque, store = almacen)
-area_quemada_mensual <- tar_read(area_quemada_mensual, store = almacen)
+firms_parque <- tar_read(firms_parque_modis, store = almacen)
+firms_mensual <- tar_read(firms_mensual_modis, store = almacen)
+area_quemada_parque <- tar_read(area_quemada_parque_modis, store = almacen)
+area_quemada_mensual <- tar_read(area_quemada_mensual_modis, store = almacen)
 rango <- range(firms_parque$acq_date)
 ```
 
@@ -66,7 +66,7 @@ por la geometría del límite.
 Detecciones mensuales de anomalías térmicas; el color indica la potencia
 radiativa del fuego (FRP).
 
-![](`r file.path("..", tar_read(anim_gif, store = almacen))`)
+![](`r file.path("..", tar_read(anim_gif_modis, store = almacen))`)
 
 ## Video resumen
 
@@ -77,14 +77,14 @@ Resumen mensual 2001--2026 en formato de video: detecciones de fuego activo
 el mes en curso con sus valores, cada serie por separado: son magnitudes
 complementarias y no sumables.
 
-<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias, store = almacen))`"></video>
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_anomalias_modis, store = almacen))`"></video>
 
 El cartel estático resume las dos series mensuales del video: los acumulados
 arriba y, en paneles separados —son magnitudes complementarias y no
 sumables—, las hectáreas quemadas y las detecciones por mes, con el mes
 máximo de cada serie rotulado.
 
-![](`r file.path("..", tar_read(cartel_resumen, store = almacen))`){width=540}
+![](`r file.path("..", tar_read(cartel_resumen_modis, store = almacen))`){width=540}
 
 ## Mapa interactivo
 
@@ -103,7 +103,7 @@ SINAC: el Registro Nacional de Humedales y la cobertura forestal 2023.
 ```{r}
 #| label: mapa-interactivo
 parque <- tar_read(parque, store = almacen)
-cobertura_mapa <- tar_read(cobertura, store = almacen)
+cobertura_mapa <- tar_read(cobertura_modis, store = almacen)
 worldcover <- tar_read(archivos_worldcover, store = almacen)
 bbox <- tar_read(bbox_descarga, store = almacen)
 humedales <- tar_read(humedales, store = almacen)
@@ -199,8 +199,8 @@ complementarla.
 
 ```{r}
 #| label: cobertura-interactiva
-cobertura <- tar_read(cobertura, store = almacen)
-humedales_detecciones <- tar_read(humedales_detecciones, store = almacen)
+cobertura <- tar_read(cobertura_modis, store = almacen)
+humedales_detecciones <- tar_read(humedales_detecciones_modis, store = almacen)
 crear_grafico_cobertura(cobertura, humedales_detecciones, etq$pie_cobertura,
                         interactivo = TRUE)
 ```
@@ -211,8 +211,8 @@ footprint elíptico— y aplica la misma limitación de la foto fija de 2021.
 
 ```{r}
 #| label: cobertura-quemas-interactiva
-cobertura_quemas <- tar_read(cobertura_quemas, store = almacen)
-humedales_quemas <- tar_read(humedales_quemas, store = almacen)
+cobertura_quemas <- tar_read(cobertura_quemas_modis, store = almacen)
+humedales_quemas <- tar_read(humedales_quemas_modis, store = almacen)
 crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
                                etq$pie_cobertura_ba, interactivo = TRUE)
 ```
@@ -267,7 +267,7 @@ borde.
 
 ```{r}
 #| label: contexto-paisaje
-borde <- tar_read(borde_bosque, store = almacen)
+borde <- tar_read(borde_bosque_modis, store = almacen)
 paisaje <- tar_read(paisaje_parque, store = almacen)
 # Los ayudantes (R/ayudantes_reporte.R) devuelven el número ya formateado en
 # español (coma decimal); para operar con los valores hay que leerlos de
