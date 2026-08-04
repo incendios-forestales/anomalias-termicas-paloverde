@@ -588,8 +588,16 @@ panel_cartel <- function(datos, columna, color, titulo) {
                       label = etiqueta_max, hjust = if (temprano) 0 else 1,
                       vjust = 0.9, family = FUENTE_VIDEO, size = 2.9,
                       color = COLOR_TEXTO_VIDEO) +
-    ggplot2::scale_x_date(date_breaks = "5 years", date_labels = "%Y",
-                          expand = ggplot2::expansion(mult = 0.01)) +
+    # Cortes del eje según el largo del registro: con 5 años fijos, una serie
+    # corta (NOAA-20 arranca en 2018) queda con una sola marca y el eje deja
+    # de ubicar al lector.
+    ggplot2::scale_x_date(
+      date_breaks = if (diff(range(as.integer(format(datos$aniomes, "%Y")))) < 12) {
+        "2 years"
+      } else {
+        "5 years"
+      },
+      date_labels = "%Y", expand = ggplot2::expansion(mult = 0.01)) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.06))) +
     ggplot2::labs(title = esparcir(titulo), x = NULL, y = NULL) +
     ggplot2::theme_minimal(base_family = FUENTE_VIDEO) +
