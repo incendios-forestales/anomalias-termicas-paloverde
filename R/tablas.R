@@ -34,16 +34,19 @@ tabla_resumen_csv <- function(puntos, quemas, dest) {
 }
 
 # Retorna el widget DT (para incrustar en el reporte Quarto).
-crear_tabla_resumen <- function(puntos, quemas = NULL) {
+crear_tabla_resumen <- function(puntos, quemas = NULL,
+                                etiqueta_fuente = "MODIS (FIRMS)",
+                                etiqueta_ba = "MCD64A1") {
   DT::datatable(
     resumen_anual(puntos, quemas),
     colnames = c("Año", "Detecciones",
                  if (!is.null(quemas)) "Hectáreas quemadas",
                  "FRP promedio (MW)", "FRP máximo (MW)"),
     caption = if (is.null(quemas)) {
-      "Anomalías térmicas por año — PN Palo Verde, MODIS (FIRMS)"
+      paste0("Anomalías térmicas por año — PN Palo Verde, ", etiqueta_fuente)
     } else {
-      "Anomalías térmicas y área quemada por año — PN Palo Verde, MODIS (FIRMS) y MCD64A1"
+      paste0("Anomalías térmicas y área quemada por año — PN Palo Verde, ",
+             etiqueta_fuente, " y ", etiqueta_ba)
     },
     options = list(pageLength = 30, dom = "t"),
     rownames = FALSE
@@ -90,8 +93,10 @@ tabla_area_quemada_csv <- function(quemas, dest) {
   dest
 }
 
-tabla_resumen_html <- function(puntos, quemas, dest) {
-  tabla <- crear_tabla_resumen(puntos, quemas)
+tabla_resumen_html <- function(puntos, quemas, dest,
+                               etiqueta_fuente = "MODIS (FIRMS)",
+                               etiqueta_ba = "MCD64A1") {
+  tabla <- crear_tabla_resumen(puntos, quemas, etiqueta_fuente, etiqueta_ba)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(tabla, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)

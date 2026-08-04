@@ -253,21 +253,15 @@ borde.
 #| label: contexto-paisaje
 borde <- tar_read(borde_bosque, store = almacen)
 paisaje <- tar_read(paisaje_parque, store = almacen)
-# Los ayudantes devuelven el número ya formateado en español (coma decimal);
-# para operar con los valores hay que leerlos de borde$tabla, no de aquí.
-pct_paisaje <- function(x) num_es(paisaje$pct_paisaje[match(x, paisaje$clase)])
-dominantes <- clase_dominante(cobertura) |>
-  dplyr::count(clase) |>
-  dplyr::mutate(pct = 100 * n / sum(n))
-pct_dominante <- function(x) num_es(dominantes$pct[match(x, dominantes$clase)])
-ha_dominante <- clase_dominante(cobertura_quemas) |>
-  dplyr::summarise(ha = sum(area_ha), .by = clase) |>
-  dplyr::mutate(pct = 100 * ha / sum(ha))
-pct_ha_dominante <- function(x) num_es(ha_dominante$pct[match(x, ha_dominante$clase)])
-pct_situacion <- function(i, col) num_es(borde$tabla[[col]][i])
-veces_menos_bosque <- num_es(
-  borde$tabla$pct_aleatorio[3] / borde$tabla$pct_area_quemada[3], 0
-)
+# Los ayudantes (R/ayudantes_reporte.R) devuelven el número ya formateado en
+# español (coma decimal); para operar con los valores hay que leerlos de
+# borde$tabla, no de aquí.
+ayudantes <- ayudantes_borde(borde, paisaje, cobertura, cobertura_quemas)
+pct_paisaje <- ayudantes$pct_paisaje
+pct_dominante <- ayudantes$pct_dominante
+pct_ha_dominante <- ayudantes$pct_ha_dominante
+pct_situacion <- ayudantes$pct_situacion
+veces_menos_bosque <- ayudantes$veces_menos_bosque
 ```
 
 El primer indicio está en la composición: el parque es
