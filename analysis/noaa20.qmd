@@ -21,6 +21,8 @@ execute:
 library(targets)
 almacen <- here::here("_targets")
 tar_source(here::here("R"))
+# Rótulos de esta plataforma; ver R/plataformas.R
+etq <- etiquetas_plataforma("noaa20")
 ```
 
 ## Introducción
@@ -110,8 +112,8 @@ bbox <- tar_read(bbox_descarga, store = almacen)
 humedales <- tar_read(humedales, store = almacen)
 bosque <- tar_read(bosque, store = almacen)
 crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
-                    humedales, bosque, quemas = area_quemada_parque,
-                    etiqueta_quemas = "Área quemada (VNP64A1, S-NPP)")
+                    etq$etiqueta_quemas, humedales, bosque,
+                    quemas = area_quemada_parque)
 ```
 
 ## Estadísticas
@@ -125,8 +127,7 @@ en este reporte provienen además de plataformas distintas.
 ```{r}
 #| label: serie-interactiva
 crear_comparacion_series(firms_mensual, area_quemada_mensual,
-                         etiqueta_ba = "VNP64A1, S-NPP",
-                         fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP) y LP DAAC (VNP64A1, Suomi-NPP)")
+                         etq$etiqueta_ba, etq$pie_ambos)
 ```
 
 ### Climatología mensual (estacionalidad)
@@ -136,17 +137,15 @@ Promedios por mes calendario de ambas magnitudes.
 ```{r}
 #| label: climatologia-interactiva
 crear_climatologia_comparada(firms_mensual, area_quemada_mensual,
-                             etiqueta_ba = "VNP64A1, S-NPP",
-                             fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP) y LP DAAC (VNP64A1, Suomi-NPP)")
+                             etq$etiqueta_ba, etq$pie_ambos)
 ```
 
 ### Resumen anual
 
 ```{r}
 #| label: tabla-resumen
-crear_tabla_resumen(firms_parque, area_quemada_parque,
-                    etiqueta_fuente = "VIIRS NOAA-20 (FIRMS)",
-                    etiqueta_ba = "VNP64A1, S-NPP")
+crear_tabla_resumen(firms_parque, etq$fuente_fig, etq$etiqueta_ba,
+                    area_quemada_parque)
 ```
 
 ### El episodio de mayo de 2026
@@ -184,8 +183,8 @@ registro abarca `r format(rango[1], "%Y")`–`r format(rango[2], "%Y")`.
 #| label: cobertura-interactiva
 cobertura <- tar_read(cobertura_noaa20, store = almacen)
 humedales_detecciones <- tar_read(humedales_detecciones_noaa20, store = almacen)
-crear_grafico_cobertura(cobertura, humedales_detecciones, interactivo = TRUE,
-                        fuente = "Datos: NASA FIRMS (VIIRS_NOAA20_SP), ESA WorldCover 2021 y SINAC")
+crear_grafico_cobertura(cobertura, humedales_detecciones, etq$pie_cobertura,
+                        interactivo = TRUE)
 ```
 
 El gráfico gemelo muestra las **hectáreas quemadas** según la clase dominante
@@ -196,8 +195,7 @@ del píxel de VNP64A1 (Suomi-NPP).
 cobertura_quemas <- tar_read(cobertura_quemas_noaa20, store = almacen)
 humedales_quemas <- tar_read(humedales_quemas_noaa20, store = almacen)
 crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
-                               interactivo = TRUE,
-                               fuente = "Datos: NASA LP DAAC (VNP64A1, Suomi-NPP), ESA WorldCover 2021 y SINAC")
+                               etq$pie_cobertura_ba, interactivo = TRUE)
 ```
 
 ### Contraste con el Registro Nacional de Humedales

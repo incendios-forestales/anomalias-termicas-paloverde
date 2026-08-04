@@ -352,9 +352,8 @@ conteo_cobertura_humedal <- function(cobertura, humedales_detecciones) {
 
 # Gráfico de barras apiladas: detecciones por clase de cobertura dominante,
 # segmentadas por condición de humedal.
-crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
-                                    interactivo = FALSE,
-                                    fuente = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC") {
+crear_grafico_cobertura <- function(cobertura, humedales_detecciones, fuente,
+                                    interactivo = FALSE) {
   conteos <- conteo_cobertura_humedal(cobertura, humedales_detecciones)
   orden <- conteos |>
     dplyr::summarise(total = sum(detecciones), .by = clase) |>
@@ -414,10 +413,9 @@ crear_grafico_cobertura <- function(cobertura, humedales_detecciones,
 }
 
 # PNG del gráfico de cobertura (target con format = "file").
-grafico_cobertura <- function(cobertura, humedales_detecciones, dest,
-                              fuente = "Datos: NASA FIRMS (MODIS_SP), ESA WorldCover 2021 y SINAC") {
-  p <- crear_grafico_cobertura(cobertura, humedales_detecciones,
-                               interactivo = FALSE, fuente = fuente)
+grafico_cobertura <- function(cobertura, humedales_detecciones, dest, fuente) {
+  p <- crear_grafico_cobertura(cobertura, humedales_detecciones, fuente,
+                               interactivo = FALSE)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
   dest
@@ -446,8 +444,7 @@ hectareas_cobertura_humedal <- function(cobertura_quemas, humedales_quemas) {
 # función (tar_source() carga cobertura.R después de area_quemada.R, pero el
 # patrón del archivo es no depender del orden de carga).
 crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
-                                           interactivo = FALSE,
-                                           fuente = "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC") {
+                                           fuente, interactivo = FALSE) {
   hectareas <- hectareas_cobertura_humedal(cobertura_quemas, humedales_quemas)
   orden <- hectareas |>
     dplyr::summarise(total = sum(hectareas), .by = clase) |>
@@ -499,9 +496,9 @@ crear_grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas,
 
 # PNG del gráfico de cobertura del área quemada (target con format = "file").
 grafico_cobertura_quemas <- function(cobertura_quemas, humedales_quemas, dest,
-                                     fuente = "Datos: NASA LP DAAC (MCD64A1), ESA WorldCover 2021 y SINAC") {
+                                     fuente) {
   p <- crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
-                                      interactivo = FALSE, fuente = fuente)
+                                      fuente, interactivo = FALSE)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   ggplot2::ggsave(dest, p, width = 8, height = 4.5, dpi = 200)
   dest

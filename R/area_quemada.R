@@ -14,8 +14,6 @@
 # las detecciones y de los tonos verdes/celestes de las capas de contexto).
 COLOR_AREA_QUEMADA <- "#54278f"
 
-FUENTE_MCD64A1 <- "Datos: NASA LP DAAC (MCD64A1 v6.1)"
-
 # Abre la banda "Burn Date" de un HDF4-EOS2 de MCD64A1 como SpatRaster
 # (CRS sinusoidal MODIS). Se resuelve por nombre de variable con
 # terra::describe(sds = TRUE) en lugar de armar la cadena GDAL
@@ -147,9 +145,7 @@ recortar_quemas_al_periodo <- function(quemas, mensual) {
 #     módulo viven en el módulo; reutilizan configurar_plotly y MESES_ES) ----
 
 # Serie mensual interactiva de hectáreas quemadas (widget plotly).
-crear_serie_area_quemada <- function(quemas_mensual,
-                                     etiqueta_ba = "MCD64A1",
-                                     fuente = FUENTE_MCD64A1) {
+crear_serie_area_quemada <- function(quemas_mensual, etiqueta_ba, fuente) {
   datos <- quemas_mensual |>
     dplyr::mutate(etiqueta = paste0(
       "Mes: ", MESES_ES[mes], " ", format(aniomes, "%Y"),
@@ -180,8 +176,7 @@ crear_serie_area_quemada <- function(quemas_mensual,
 # (conteo de detecciones vs. superficie) y el doble eje invita a lecturas
 # espurias de proporcionalidad.
 crear_comparacion_series <- function(firms_mensual, quemas_mensual,
-                                     etiqueta_ba = "MCD64A1",
-                                     fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
+                                     etiqueta_ba, fuente) {
   tema <- ggplot2::theme_minimal() +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),
@@ -230,8 +225,7 @@ crear_comparacion_series <- function(firms_mensual, quemas_mensual,
 # y hectáreas quemadas (abajo), con el eje de meses compartido. Mismos niveles
 # de factor en ambos paneles: shareX exige ejes idénticos.
 crear_climatologia_comparada <- function(firms_mensual, quemas_mensual,
-                                         etiqueta_ba = "MCD64A1",
-                                         fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
+                                         etiqueta_ba, fuente) {
   tema <- ggplot2::theme_minimal() +
     ggplot2::theme(
       panel.grid.minor = ggplot2::element_blank(),
@@ -280,9 +274,7 @@ crear_climatologia_comparada <- function(firms_mensual, quemas_mensual,
 }
 
 # Versiones PNG (targets con format = "file", patrón dest -> dest).
-grafico_area_quemada <- function(quemas_mensual, dest,
-                                 etiqueta_ba = "MCD64A1",
-                                 fuente = FUENTE_MCD64A1) {
+grafico_area_quemada <- function(quemas_mensual, dest, etiqueta_ba, fuente) {
   p <- ggplot2::ggplot(quemas_mensual,
                        ggplot2::aes(x = aniomes, y = hectareas)) +
     ggplot2::geom_col(fill = COLOR_AREA_QUEMADA, width = 25) +
@@ -308,8 +300,7 @@ grafico_area_quemada <- function(quemas_mensual, dest,
 }
 
 grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest,
-                                           etiqueta_ba = "MCD64A1",
-                                           fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
+                                           etiqueta_ba, fuente) {
   niveles <- c("Detecciones promedio (FIRMS)",
                paste0("Hectáreas quemadas promedio (", etiqueta_ba, ")"))
   datos <- dplyr::bind_rows(
@@ -353,8 +344,7 @@ grafico_climatologia_comparada <- function(firms_mensual, quemas_mensual, dest,
 }
 
 grafico_comparacion <- function(firms_mensual, quemas_mensual, dest,
-                                etiqueta_ba = "MCD64A1",
-                                fuente = "Datos: NASA FIRMS (MODIS_SP) y LP DAAC (MCD64A1)") {
+                                etiqueta_ba, fuente) {
   niveles <- c("Detecciones de fuego activo (FIRMS)",
                paste0("Área quemada en hectáreas (", etiqueta_ba, ")"))
   datos <- dplyr::bind_rows(
