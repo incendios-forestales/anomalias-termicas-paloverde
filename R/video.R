@@ -267,8 +267,7 @@ datos_cuadros_video <- function(firms_mensual, area_quemada_mensual) {
 # deriva el rango de años de los datos (para MODIS reproduce el histórico
 # "2001 - 2026"); el resto intercambia las siglas del sensor y del producto
 # de área quemada en leyendas, créditos y rótulos de panel.
-etiquetas_video <- function(anios, etiqueta_fuente = "MODIS",
-                            id_fuente = "MODIS_SP", etiqueta_ba = "MCD64A1") {
+etiquetas_video <- function(anios, etiqueta_fuente, id_fuente, etiqueta_ba) {
   list(
     titulo = paste0("Anomalías Térmicas en el PN Palo Verde, ",
                     min(anios), " - ", max(anios)),
@@ -617,9 +616,7 @@ panel_cartel <- function(datos, columna, color, titulo) {
 # Compone el cartel: encabezado y créditos del video (dibujados con grid) y
 # los dos paneles ggplot apilados. Target con format = "file".
 generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest,
-                                   etiqueta_fuente = "MODIS",
-                                   id_fuente = "MODIS_SP",
-                                   etiqueta_ba = "MCD64A1") {
+                                   etiqueta_fuente, id_fuente, etiqueta_ba) {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
   etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
                                etiqueta_ba)
@@ -695,11 +692,9 @@ generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest,
 generar_video_anomalias <- function(firms_parque, area_quemada_parque,
                                     firms_mensual, area_quemada_mensual,
                                     parque, relieve, dest,
+                                    etiqueta_fuente, id_fuente, etiqueta_ba,
                                     fps = 10, congelar_s = 2.5,
-                                    anios = NULL, dir_cuadros = NULL,
-                                    etiqueta_fuente = "MODIS",
-                                    id_fuente = "MODIS_SP",
-                                    etiqueta_ba = "MCD64A1") {
+                                    anios = NULL, dir_cuadros = NULL) {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
   # El título conserva el rango completo del registro aunque `anios` filtre
   # los cuadros para pruebas.

@@ -21,6 +21,8 @@ execute:
 library(targets)
 almacen <- here::here("_targets")
 tar_source(here::here("R"))
+# Rótulos de esta plataforma; ver R/plataformas.R
+etq <- etiquetas_plataforma("modis")
 ```
 
 ## Introducción
@@ -107,7 +109,8 @@ bbox <- tar_read(bbox_descarga, store = almacen)
 humedales <- tar_read(humedales, store = almacen)
 bosque <- tar_read(bosque, store = almacen)
 crear_mapa_temporal(firms_parque, parque, cobertura_mapa, worldcover, bbox,
-                    humedales, bosque, quemas = area_quemada_parque)
+                    etq$etiqueta_quemas, humedales, bosque,
+                    quemas = area_quemada_parque)
 ```
 
 ## Área quemada (MCD64A1)
@@ -145,7 +148,8 @@ y rápida entre sobrevuelos.
 
 ```{r}
 #| label: serie-interactiva
-crear_comparacion_series(firms_mensual, area_quemada_mensual)
+crear_comparacion_series(firms_mensual, area_quemada_mensual,
+                         etq$etiqueta_ba, etq$pie_ambos)
 ```
 
 ### Climatología mensual (estacionalidad)
@@ -156,7 +160,8 @@ publicación de MCD64A1.
 
 ```{r}
 #| label: climatologia-interactiva
-crear_climatologia_comparada(firms_mensual, area_quemada_mensual)
+crear_climatologia_comparada(firms_mensual, area_quemada_mensual,
+                             etq$etiqueta_ba, etq$pie_ambos)
 ```
 
 ### Resumen anual
@@ -167,7 +172,8 @@ año.
 
 ```{r}
 #| label: tabla-resumen
-crear_tabla_resumen(firms_parque, area_quemada_parque)
+crear_tabla_resumen(firms_parque, etq$fuente_fig, etq$etiqueta_ba,
+                    area_quemada_parque)
 ```
 
 ## Cobertura de la tierra
@@ -195,7 +201,8 @@ complementarla.
 #| label: cobertura-interactiva
 cobertura <- tar_read(cobertura, store = almacen)
 humedales_detecciones <- tar_read(humedales_detecciones, store = almacen)
-crear_grafico_cobertura(cobertura, humedales_detecciones, interactivo = TRUE)
+crear_grafico_cobertura(cobertura, humedales_detecciones, etq$pie_cobertura,
+                        interactivo = TRUE)
 ```
 
 El gráfico gemelo muestra las **hectáreas quemadas** según la clase dominante
@@ -207,7 +214,7 @@ footprint elíptico— y aplica la misma limitación de la foto fija de 2021.
 cobertura_quemas <- tar_read(cobertura_quemas, store = almacen)
 humedales_quemas <- tar_read(humedales_quemas, store = almacen)
 crear_grafico_cobertura_quemas(cobertura_quemas, humedales_quemas,
-                               interactivo = TRUE)
+                               etq$pie_cobertura_ba, interactivo = TRUE)
 ```
 
 ### Contraste con el Registro Nacional de Humedales

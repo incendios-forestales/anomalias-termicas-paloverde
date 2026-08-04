@@ -15,9 +15,8 @@ MESES_ES <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
 # fantasma invisibles, para que el tiempo avance a ritmo constante.
 # El formato de salida se infiere de la extensión de `dest` (.gif o .mp4).
 animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
-                               bbox, dest, fps = 4,
-                               etiqueta_fuente = "MODIS (FIRMS)",
-                               fuente_datos = "Datos: NASA FIRMS (MODIS_SP) y SINAC. Fondo: ESA WorldCover 2021") {
+                               bbox, dest, etiqueta_fuente, fuente_datos,
+                               fps = 4) {
   etiquetas <- format(mensual$aniomes, "%Y-%m")
   puntos <- puntos |>
     dplyr::mutate(cuadro = factor(format(aniomes, "%Y-%m"), levels = etiquetas))
@@ -83,9 +82,8 @@ animar_detecciones <- function(puntos, parque, mensual, archivos_worldcover,
 # seleccionado (los índices del deslizador corresponden al orden de los puntos).
 # `time` se pasa como fecha ISO en texto: es lo que el plugin muestra al arrastrar.
 crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                bbox, humedales = NULL, bosque = NULL,
-                                quemas = NULL,
-                                etiqueta_quemas = "Área quemada (MCD64A1)") {
+                                bbox, etiqueta_quemas, humedales = NULL,
+                                bosque = NULL, quemas = NULL) {
   # Clase de cobertura dominante por detección (id_deteccion es el número de
   # fila de `puntos` en el orden en que extraer_cobertura() los recibió, por
   # lo que el join debe hacerse ANTES de reordenar por fecha).
@@ -351,10 +349,10 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
 
 # Guarda el mapa temporal como HTML autocontenido (target con format = "file").
 mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
-                                  bbox, humedales, bosque, dest, quemas = NULL,
-                                  etiqueta_quemas = "Área quemada (MCD64A1)") {
+                                  bbox, humedales, bosque, dest,
+                                  etiqueta_quemas, quemas = NULL) {
   m <- crear_mapa_temporal(puntos, parque, cobertura, archivos_worldcover, bbox,
-                           humedales, bosque, quemas, etiqueta_quemas)
+                           etiqueta_quemas, humedales, bosque, quemas)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(m, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
@@ -362,9 +360,7 @@ mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover
 }
 
 # Serie temporal mensual de detecciones (una serie: sin leyenda, un solo tono).
-grafico_serie_temporal <- function(mensual, dest,
-                                   etiqueta_fuente = "MODIS (FIRMS)",
-                                   fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+grafico_serie_temporal <- function(mensual, dest, etiqueta_fuente, fuente) {
   p <- ggplot2::ggplot(mensual, ggplot2::aes(x = aniomes, y = detecciones)) +
     ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 25) +
     ggplot2::scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
@@ -389,9 +385,7 @@ grafico_serie_temporal <- function(mensual, dest,
 
 # Climatología mensual: promedio de detecciones por mes calendario
 # (estacionalidad de la época seca).
-grafico_climatologia <- function(mensual, dest,
-                                 etiqueta_fuente = "MODIS (FIRMS)",
-                                 fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+grafico_climatologia <- function(mensual, dest, etiqueta_fuente, fuente) {
   clima <- mensual |>
     dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
     dplyr::mutate(nombre_mes = factor(MESES_ES[mes], levels = MESES_ES))
@@ -427,8 +421,7 @@ grafico_climatologia <- function(mensual, dest,
 # `margen_superior` debe crecer cuando el gráfico lleva leyenda arriba: la
 # leyenda se coloca justo sobre el área de trazado y con el margen por
 # defecto se traslapa con el subtítulo.
-configurar_plotly <- function(w, titulo, subtitulo,
-                              fuente = "Datos: NASA FIRMS (MODIS_SP)",
+configurar_plotly <- function(w, titulo, subtitulo, fuente,
                               margen_superior = 70, margen_inferior = 70,
                               desplazamiento_fuente = -50) {
   w |>
@@ -459,9 +452,7 @@ configurar_plotly <- function(w, titulo, subtitulo,
 }
 
 # Serie temporal mensual interactiva (zoom/pan sobre todo el registro).
-crear_serie_interactiva <- function(mensual,
-                                    etiqueta_fuente = "MODIS (FIRMS)",
-                                    fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+crear_serie_interactiva <- function(mensual, etiqueta_fuente, fuente) {
   datos <- mensual |>
     dplyr::mutate(etiqueta = paste0(
       "Mes: ", MESES_ES[mes], " ", format(aniomes, "%Y"),
@@ -488,9 +479,7 @@ crear_serie_interactiva <- function(mensual,
 }
 
 # Climatología mensual interactiva.
-crear_climatologia_interactiva <- function(mensual,
-                                           etiqueta_fuente = "MODIS (FIRMS)",
-                                           fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+crear_climatologia_interactiva <- function(mensual, etiqueta_fuente, fuente) {
   clima <- mensual |>
     dplyr::summarise(promedio = mean(detecciones), .by = mes) |>
     dplyr::mutate(
@@ -520,9 +509,7 @@ crear_climatologia_interactiva <- function(mensual,
 
 # Guardan los gráficos interactivos como HTML autocontenido
 # (targets con format = "file", mismo patrón que mapa_leaflet_temporal).
-grafico_serie_html <- function(mensual, dest,
-                               etiqueta_fuente = "MODIS (FIRMS)",
-                               fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+grafico_serie_html <- function(mensual, dest, etiqueta_fuente, fuente) {
   w <- crear_serie_interactiva(mensual, etiqueta_fuente, fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(w, file.path(normalizePath(dirname(dest)), basename(dest)),
@@ -530,9 +517,7 @@ grafico_serie_html <- function(mensual, dest,
   dest
 }
 
-grafico_climatologia_html <- function(mensual, dest,
-                                      etiqueta_fuente = "MODIS (FIRMS)",
-                                      fuente = "Datos: NASA FIRMS (MODIS_SP)") {
+grafico_climatologia_html <- function(mensual, dest, etiqueta_fuente, fuente) {
   w <- crear_climatologia_interactiva(mensual, etiqueta_fuente, fuente)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(w, file.path(normalizePath(dirname(dest)), basename(dest)),

@@ -34,9 +34,8 @@ tabla_resumen_csv <- function(puntos, quemas, dest) {
 }
 
 # Retorna el widget DT (para incrustar en el reporte Quarto).
-crear_tabla_resumen <- function(puntos, quemas = NULL,
-                                etiqueta_fuente = "MODIS (FIRMS)",
-                                etiqueta_ba = "MCD64A1") {
+crear_tabla_resumen <- function(puntos, etiqueta_fuente, etiqueta_ba,
+                                quemas = NULL) {
   DT::datatable(
     resumen_anual(puntos, quemas),
     colnames = c("Año", "Detecciones",
@@ -93,10 +92,9 @@ tabla_area_quemada_csv <- function(quemas, dest) {
   dest
 }
 
-tabla_resumen_html <- function(puntos, quemas, dest,
-                               etiqueta_fuente = "MODIS (FIRMS)",
-                               etiqueta_ba = "MCD64A1") {
-  tabla <- crear_tabla_resumen(puntos, quemas, etiqueta_fuente, etiqueta_ba)
+tabla_resumen_html <- function(puntos, quemas, dest, etiqueta_fuente,
+                               etiqueta_ba) {
+  tabla <- crear_tabla_resumen(puntos, etiqueta_fuente, etiqueta_ba, quemas)
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   htmlwidgets::saveWidget(tabla, file.path(normalizePath(dirname(dest)), basename(dest)),
                           selfcontained = TRUE)
