@@ -402,5 +402,18 @@ list(
     reporte  # dependencia explícita del render
     file.copy("analysis/index.html", "index.html", overwrite = TRUE)
     "index.html"
+  }, format = "file"),
+
+  # --- Reporte VIIRS → viirs/index.html (misma publicación, otra ruta) -----
+  # GitHub Pages sirve la raíz de main, así que viirs/index.html queda en
+  # <sitio>/viirs/ sin tocar la URL del reporte MODIS.
+  tar_quarto(reporte_viirs, "analysis/viirs.qmd",
+             extra_files = list.files("R", pattern = "[.][Rr]$",
+                                      full.names = TRUE)),
+  tar_target(pagina_viirs, {
+    reporte_viirs  # dependencia explícita del render
+    dir.create("viirs", showWarnings = FALSE)
+    file.copy("analysis/viirs.html", "viirs/index.html", overwrite = TRUE)
+    "viirs/index.html"
   }, format = "file")
 )
