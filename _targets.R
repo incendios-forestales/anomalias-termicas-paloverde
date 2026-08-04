@@ -133,6 +133,57 @@ list(
              contexto_borde(firms_parque_viirs, parque, archivos_worldcover,
                             bbox_descarga, quemas = area_quemada_parque_viirs)),
 
+  # --- Fuente VIIRS NOAA-20: tercera cadena, también independiente ---------
+  # Mismo instrumento que S-NPP pero otra plataforma, con media órbita de
+  # separación: sus detecciones son observaciones adicionales, no las mismas,
+  # y por eso tampoco se suman a las de S-NPP (lo harían aparecer como un
+  # salto en 2018). Registro desde 2018-04.
+  #
+  # No existe producto de área quemada de NOAA-20 (VJ164A1 no está publicado;
+  # verificado en CMR el 2026-08-04), así que estos productos se acompañan del
+  # ÚNICO producto de área quemada VIIRS, VNP64A1 de S-NPP, recortado a la
+  # ventana de NOAA-20 y rotulado como tal en todas las salidas. Es una
+  # medición distinta (superficie marcada a 500 m), no detecciones de otro
+  # sensor mezcladas.
+  tar_target(fuente_firms_noaa20, "VIIRS_NOAA20_SP"),
+  tar_target(rango_disponible_noaa20, firms_disponibilidad(fuente_firms_noaa20),
+             cue = tar_cue(mode = "always")),
+  tar_target(rango_efectivo_noaa20,
+             clamp_rango(fecha_inicio, fecha_fin, rango_disponible_noaa20)),
+  tar_target(fragmentos_noaa20, construir_fragmentos(rango_efectivo_noaa20),
+             iteration = "group"),
+  tar_target(
+    csv_fragmentos_noaa20,
+    descargar_firms_fragmento(fragmentos_noaa20, fuente_firms_noaa20,
+                              bbox_descarga),
+    pattern = map(fragmentos_noaa20),
+    format = "file"
+  ),
+  tar_target(firms_crudo_noaa20,   leer_y_unir_csv(csv_fragmentos_noaa20)),
+  tar_target(firms_puntos_noaa20,  a_sf_puntos(firms_crudo_noaa20)),
+  tar_target(firms_parque_noaa20,  recortar_al_parque(firms_puntos_noaa20, parque)),
+  tar_target(firms_mensual_noaa20, agregar_mensual(firms_parque_noaa20)),
+  tar_target(cobertura_noaa20,
+             extraer_cobertura(firms_parque_noaa20, archivos_worldcover)),
+  tar_target(humedales_detecciones_noaa20,
+             cruzar_con_humedales(firms_parque_noaa20, humedales)),
+  # Área quemada de S-NPP recortada a la ventana de NOAA-20: reutiliza los
+  # granulos ya descargados (no hay descarga nueva).
+  tar_target(area_quemada_parque_noaa20,
+             recortar_quemas_al_periodo(area_quemada_parque_viirs,
+                                        firms_mensual_noaa20)),
+  tar_target(area_quemada_mensual_noaa20,
+             agregar_mensual_quemas(area_quemada_parque_noaa20,
+                                    rango_meses = range(firms_mensual_noaa20$aniomes))),
+  tar_target(cobertura_quemas_noaa20,
+             extraer_cobertura_quemas(area_quemada_parque_noaa20,
+                                      archivos_worldcover)),
+  tar_target(humedales_quemas_noaa20,
+             cruzar_quemas_con_humedales(area_quemada_parque_noaa20, humedales)),
+  tar_target(borde_bosque_noaa20,
+             contexto_borde(firms_parque_noaa20, parque, archivos_worldcover,
+                            bbox_descarga, quemas = area_quemada_parque_noaa20)),
+
   # --- Área quemada (MCD64A1 v6.1, LP DAAC vía Earthdata) ------------------
   # FIRMS no entrega BA_MODIS como datos (su API de área responde vacío);
   # se usa el producto original. Ver cabecera de R/descarga_mcd64a1.R.
