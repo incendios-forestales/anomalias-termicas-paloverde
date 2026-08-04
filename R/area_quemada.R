@@ -131,6 +131,18 @@ agregar_mensual_quemas <- function(quemas, rango_meses = NULL) {
     )
 }
 
+# Recorta los píxeles quemados al período de una serie de detecciones. Se usa
+# cuando un producto de área quemada cubre un registro más largo que el sensor
+# de fuego activo con el que se publica (VNP64A1 arranca en 2012; NOAA-20, en
+# 2018): sin este recorte los productos mostrarían superficie quemada en años
+# sin detecciones, un desajuste visual que sugiere un vacío de detección
+# inexistente. `agregar_mensual_quemas()` no sirve para esto: extiende el eje
+# pero nunca descarta meses con quemas.
+recortar_quemas_al_periodo <- function(quemas, mensual) {
+  quemas[quemas$aniomes >= min(mensual$aniomes) &
+           quemas$aniomes <= max(mensual$aniomes), ]
+}
+
 # --- Visualizaciones (mismo precedente que cobertura.R: los gráficos del
 #     módulo viven en el módulo; reutilizan configurar_plotly y MESES_ES) ----
 
