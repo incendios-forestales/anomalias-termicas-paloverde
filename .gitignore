@@ -23,7 +23,8 @@ Rplots.pdf
 *_cache/
 *_files/
 .quarto/
-analysis/index.html
+analysis/modis.html
+analysis/portada.html
 analysis/viirs.html
 analysis/noaa20.html
 analysis/noaa21.html

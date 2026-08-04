@@ -544,3 +544,38 @@ grafico_climatologia_html <- function(mensual, dest, etiqueta_fuente, fuente) {
                           selfcontained = TRUE)
   dest
 }
+
+# Las cuatro series mensuales en facetas con eje temporal común y escala y
+# libre. Es el argumento visual de por qué las series no se suman: hace
+# evidente que cada plataforma cubre un tramo distinto y detecta a un ritmo
+# distinto sobre el mismo territorio.
+grafico_series_plataformas <- function(mensuales, etiquetas, dest) {
+  datos <- purrr::map2(mensuales, etiquetas, function(m, e) {
+    dplyr::mutate(m[, c("aniomes", "detecciones")], plataforma = e$plataforma)
+  }) |>
+    purrr::list_rbind() |>
+    dplyr::mutate(plataforma = factor(plataforma, levels = purrr::map_chr(etiquetas, "plataforma")))
+  p <- ggplot2::ggplot(datos, ggplot2::aes(x = aniomes, y = detecciones)) +
+    ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 25) +
+    ggplot2::facet_wrap(~plataforma, ncol = 1, scales = "free_y") +
+    ggplot2::scale_x_date(date_breaks = "5 years", date_labels = "%Y") +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
+    ggplot2::labs(
+      title = "Detecciones mensuales según la plataforma que observa",
+      subtitle = paste("El eje temporal es común; cada panel tiene su propia",
+                       "escala vertical.\nLas series no son sumables entre sí."),
+      x = NULL, y = "Detecciones por mes",
+      caption = "Datos: NASA FIRMS (MODIS y VIIRS)"
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_line(color = "grey92"),
+      plot.title = ggplot2::element_text(face = "bold"),
+      strip.text = ggplot2::element_text(face = "bold", hjust = 0)
+    )
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 9, height = 8, dpi = 200)
+  dest
+}
