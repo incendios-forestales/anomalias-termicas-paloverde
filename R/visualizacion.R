@@ -196,6 +196,7 @@ crear_mapa_temporal <- function(puntos, parque, cobertura, archivos_worldcover,
         "<br><strong>Hora (UTC):</strong> ", sprintf("%04d", acq_time),
         "<br><strong>FRP (MW):</strong> ", num_es(frp),
         "<br><strong>Confianza:</strong> ", etiqueta_confianza(confidence),
+        "<br><strong>Procesamiento:</strong> ", etiqueta_nivel(nivel),
         "<br><strong>Satélite:</strong> ", satellite,
         "<br><strong>Cobertura dominante (2021):</strong> ", clase_cobertura,
         " (", round(fraccion_cobertura * 100), " %)"
@@ -359,9 +360,28 @@ mapa_leaflet_temporal <- function(puntos, parque, cobertura, archivos_worldcover
   dest
 }
 
+# Banda que marca el tramo servido por el procesamiento en tiempo casi real.
+# Se dibuja ANTES que las barras para no taparlas. Devuelve NULL si la serie
+# es enteramente estándar, de modo que sumarla a un ggplot no cambie nada.
+capa_tramo_provisional <- function(mensual) {
+  provisionales <- mensual$aniomes[mensual$nivel != "SP"]
+  if (length(provisionales) == 0) return(NULL)
+  list(
+    ggplot2::annotate("rect",
+                      xmin = min(provisionales) - 15,
+                      xmax = max(provisionales) + 15,
+                      ymin = -Inf, ymax = Inf,
+                      fill = "grey60", alpha = 0.18),
+    ggplot2::annotate("text", x = min(provisionales) - 25, y = Inf,
+                      label = "provisional →", hjust = 1, vjust = 1.6,
+                      size = 2.7, color = "grey35")
+  )
+}
+
 # Serie temporal mensual de detecciones (una serie: sin leyenda, un solo tono).
 grafico_serie_temporal <- function(mensual, dest, etiqueta_fuente, fuente) {
   p <- ggplot2::ggplot(mensual, ggplot2::aes(x = aniomes, y = detecciones)) +
+    capa_tramo_provisional(mensual) +
     ggplot2::geom_col(fill = COLOR_DETECCIONES, width = 25) +
     ggplot2::scale_x_date(date_breaks = "2 years", date_labels = "%Y") +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +

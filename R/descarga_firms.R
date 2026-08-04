@@ -68,21 +68,62 @@ clamp_rango <- function(inicio, fin, disponible) {
 # Solo el primer y último fragmento se recortan al rango efectivo; el nombre
 # del último cambia cuando avanza la disponibilidad, forzando su re-descarga.
 # Retorna un data frame agrupado por fila para branching dinámico de targets.
-construir_fragmentos <- function(rango, dias = FIRMS_DIAS_FRAGMENTO,
-                                 origen = ORIGEN_GRILLA) {
+rejilla_fragmentos <- function(rango, dias = FIRMS_DIAS_FRAGMENTO,
+                               origen = ORIGEN_GRILLA) {
   k_inicio <- floor(as.numeric(rango[["inicio"]] - origen) / dias)
   k_fin    <- floor(as.numeric(rango[["fin"]] - origen) / dias)
   inicio <- origen + (k_inicio:k_fin) * dias
   fin    <- inicio + (dias - 1)
-  fragmentos <- data.frame(
+  data.frame(
     inicio = pmax(inicio, rango[["inicio"]]),
     fin    = pmin(fin, rango[["fin"]])
   )
-  # La clave de grupo es la fecha de inicio (estable ante ampliaciones del
-  # rango); un número de fila desplazaría todas las ramas al anteponer
-  # fragmentos.
-  fragmentos |>
-    dplyr::group_by(inicio) |>
+}
+
+# Rangos efectivos de una plataforma: una fila por nivel de procesamiento.
+#
+# Aplica la REGLA DE COLA: el estándar (SP) cubre todo lo que ofrece y el
+# tiempo casi real (NRT) arranca el día siguiente al fin del SP, aunque FIRMS
+# lo ofrezca desde antes. Así las dos ventanas nunca se solapan por
+# construcción. Si la ventana NRT queda vacía —porque el SP ya la alcanzó— la
+# fila simplemente no se emite.
+#
+# Una plataforma sin procesamiento estándar (NOAA-21) devuelve una sola fila.
+rangos_plataforma <- function(clave, inicio, fin) {
+  p <- plataforma(clave)
+  filas <- list()
+  limite_sp <- as.Date(NA)
+  if (!is.na(p$fuente_sp)) {
+    r <- clamp_rango(inicio, fin, firms_disponibilidad(p$fuente_sp))
+    filas$sp <- data.frame(data_id = p$fuente_sp, nivel = "SP",
+                           inicio = r[["inicio"]], fin = r[["fin"]])
+    limite_sp <- r[["fin"]]
+  }
+  disp <- firms_disponibilidad(p$fuente_nrt)
+  arranque <- if (is.na(limite_sp)) disp[["inicio"]] else
+    max(disp[["inicio"]], limite_sp + 1)
+  ini_nrt <- max(arranque, inicio)
+  fin_nrt <- min(fin, disp[["fin"]])
+  if (ini_nrt <= fin_nrt) {
+    filas$nrt <- data.frame(data_id = p$fuente_nrt, nivel = "NRT",
+                            inicio = ini_nrt, fin = fin_nrt)
+  }
+  do.call(rbind, unname(filas))
+}
+
+# Fragmentos de todas las fuentes de una plataforma, sobre la rejilla común.
+# La clave de grupo es (data_id, inicio): con dos fuentes la fecha de inicio
+# sola dejaría de ser única. Hoy las ventanas son disjuntas y no colisionarían,
+# pero la clave debe ser correcta por construcción y no por una propiedad de
+# los datos del día.
+construir_fragmentos_multi <- function(rangos, dias = FIRMS_DIAS_FRAGMENTO,
+                                       origen = ORIGEN_GRILLA) {
+  purrr::pmap(rangos, function(data_id, nivel, inicio, fin) {
+    rejilla_fragmentos(c(inicio = inicio, fin = fin), dias, origen) |>
+      dplyr::mutate(data_id = data_id, nivel = nivel)
+  }) |>
+    purrr::list_rbind() |>
+    dplyr::group_by(data_id, inicio) |>
     targets::tar_group()
 }
 
@@ -92,10 +133,11 @@ construir_fragmentos <- function(rango, dias = FIRMS_DIAS_FRAGMENTO,
 #   - escritura atómica (.part -> rename): una interrupción nunca deja un CSV
 #     truncado que se tome por válido.
 # Retorna el path al CSV (target con format = "file").
-descargar_firms_fragmento <- function(fragmento, data_id, bbox,
+descargar_firms_fragmento <- function(fragmento, bbox,
                                       dir = "data/raw/firms") {
-  inicio <- fragmento$inicio[[1]]
-  fin    <- fragmento$fin[[1]]
+  inicio  <- fragmento$inicio[[1]]
+  fin     <- fragmento$fin[[1]]
+  data_id <- fragmento$data_id[[1]]
   destino <- file.path(dir, data_id, glue::glue("{inicio}_{fin}.csv"))
   if (file.exists(destino) && file.info(destino)$size > 0) {
     message(glue::glue("[cache] {basename(destino)} ya existe"))

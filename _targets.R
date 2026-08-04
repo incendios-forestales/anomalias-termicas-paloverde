@@ -30,7 +30,6 @@ list(
   # una fecha_fin lejana significa "hasta lo más reciente disponible".
   tar_target(fecha_inicio, as.Date("2001-01-01")),
   tar_target(fecha_fin,    as.Date("2100-01-01")),
-  tar_target(fuente_firms, "MODIS_SP"),
 
   # --- Rótulos de cada plataforma ------------------------------------------
   # Todo texto visible (subtítulos, pies de fuente, nombres de capa) se deriva
@@ -47,26 +46,26 @@ list(
   tar_target(parque, procesar_parque(archivo_parque)),
   tar_target(bbox_descarga, bbox_con_buffer(parque)),
 
-  # --- Disponibilidad y fragmentos de descarga -----------------------------
-  tar_target(rango_disponible, firms_disponibilidad(fuente_firms),
+  # --- Rangos, fragmentos y descarga ---------------------------------------
+  # Cada plataforma se sirve de su procesamiento estándar y, a continuación,
+  # de la cola en tiempo casi real (ver rangos_plataforma()). Las dos ventanas
+  # no se solapan por construcción y el traslape se resuelve además por fecha
+  # al leer, para sobrevivir a fragmentos NRT que queden obsoletos cuando el
+  # estándar avance.
+  tar_target(rangos_modis, rangos_plataforma("modis", fecha_inicio, fecha_fin),
              cue = tar_cue(mode = "always")),
-  tar_target(rango_efectivo, clamp_rango(fecha_inicio, fecha_fin, rango_disponible)),
-  tar_target(fragmentos, construir_fragmentos(rango_efectivo),
+  tar_target(fragmentos, construir_fragmentos_multi(rangos_modis),
              iteration = "group"),
-
-  # --- Descarga reanudable: una rama dinámica por fragmento ----------------
   tar_target(
     csv_fragmentos,
-    descargar_firms_fragmento(fragmentos, fuente_firms, bbox_descarga),
+    descargar_firms_fragmento(fragmentos, bbox_descarga),
     pattern = map(fragmentos),
     format = "file"
   ),
-
-  # --- Procesamiento --------------------------------------------------------
-  tar_target(firms_crudo,   leer_y_unir_csv(csv_fragmentos)),
+  tar_target(firms_crudo,   leer_y_unir_csv(csv_fragmentos, rangos_modis)),
   tar_target(firms_puntos,  a_sf_puntos(firms_crudo)),
   tar_target(firms_parque,  recortar_al_parque(firms_puntos, parque)),
-  tar_target(firms_mensual, agregar_mensual(firms_parque)),
+  tar_target(firms_mensual, agregar_mensual(firms_parque, rangos_modis)),
 
   # --- Cobertura de la tierra (ESA WorldCover 2021) ------------------------
   tar_target(archivos_worldcover, descargar_worldcover(bbox_descarga),
@@ -93,24 +92,21 @@ list(
   # MODIS). La rejilla de fragmentos es común (ORIGEN_GRILLA) y clamp_rango()
   # recorta al registro VIIRS (desde 2012-01-20). Si se agrega una tercera
   # fuente, migrar estas cadenas a tarchetypes::tar_map.
-  tar_target(fuente_firms_viirs, "VIIRS_SNPP_SP"),
-  tar_target(rango_disponible_viirs, firms_disponibilidad(fuente_firms_viirs),
+  tar_target(rangos_viirs,
+             rangos_plataforma("viirs", fecha_inicio, fecha_fin),
              cue = tar_cue(mode = "always")),
-  tar_target(rango_efectivo_viirs,
-             clamp_rango(fecha_inicio, fecha_fin, rango_disponible_viirs)),
-  tar_target(fragmentos_viirs, construir_fragmentos(rango_efectivo_viirs),
+  tar_target(fragmentos_viirs, construir_fragmentos_multi(rangos_viirs),
              iteration = "group"),
   tar_target(
     csv_fragmentos_viirs,
-    descargar_firms_fragmento(fragmentos_viirs, fuente_firms_viirs,
-                              bbox_descarga),
+    descargar_firms_fragmento(fragmentos_viirs, bbox_descarga),
     pattern = map(fragmentos_viirs),
     format = "file"
   ),
-  tar_target(firms_crudo_viirs,   leer_y_unir_csv(csv_fragmentos_viirs)),
+  tar_target(firms_crudo_viirs,   leer_y_unir_csv(csv_fragmentos_viirs, rangos_viirs)),
   tar_target(firms_puntos_viirs,  a_sf_puntos(firms_crudo_viirs)),
   tar_target(firms_parque_viirs,  recortar_al_parque(firms_puntos_viirs, parque)),
-  tar_target(firms_mensual_viirs, agregar_mensual(firms_parque_viirs)),
+  tar_target(firms_mensual_viirs, agregar_mensual(firms_parque_viirs, rangos_viirs)),
   tar_target(cobertura_viirs,
              extraer_cobertura(firms_parque_viirs, archivos_worldcover)),
   tar_target(humedales_detecciones_viirs,
@@ -154,24 +150,21 @@ list(
   # ventana de NOAA-20 y rotulado como tal en todas las salidas. Es una
   # medición distinta (superficie marcada a 500 m), no detecciones de otro
   # sensor mezcladas.
-  tar_target(fuente_firms_noaa20, "VIIRS_NOAA20_SP"),
-  tar_target(rango_disponible_noaa20, firms_disponibilidad(fuente_firms_noaa20),
+  tar_target(rangos_noaa20,
+             rangos_plataforma("noaa20", fecha_inicio, fecha_fin),
              cue = tar_cue(mode = "always")),
-  tar_target(rango_efectivo_noaa20,
-             clamp_rango(fecha_inicio, fecha_fin, rango_disponible_noaa20)),
-  tar_target(fragmentos_noaa20, construir_fragmentos(rango_efectivo_noaa20),
+  tar_target(fragmentos_noaa20, construir_fragmentos_multi(rangos_noaa20),
              iteration = "group"),
   tar_target(
     csv_fragmentos_noaa20,
-    descargar_firms_fragmento(fragmentos_noaa20, fuente_firms_noaa20,
-                              bbox_descarga),
+    descargar_firms_fragmento(fragmentos_noaa20, bbox_descarga),
     pattern = map(fragmentos_noaa20),
     format = "file"
   ),
-  tar_target(firms_crudo_noaa20,   leer_y_unir_csv(csv_fragmentos_noaa20)),
+  tar_target(firms_crudo_noaa20,   leer_y_unir_csv(csv_fragmentos_noaa20, rangos_noaa20)),
   tar_target(firms_puntos_noaa20,  a_sf_puntos(firms_crudo_noaa20)),
   tar_target(firms_parque_noaa20,  recortar_al_parque(firms_puntos_noaa20, parque)),
-  tar_target(firms_mensual_noaa20, agregar_mensual(firms_parque_noaa20)),
+  tar_target(firms_mensual_noaa20, agregar_mensual(firms_parque_noaa20, rangos_noaa20)),
   tar_target(cobertura_noaa20,
              extraer_cobertura(firms_parque_noaa20, archivos_worldcover)),
   tar_target(humedales_detecciones_noaa20,
@@ -237,7 +230,7 @@ list(
   tar_target(cartel_resumen,
              generar_cartel_resumen(firms_mensual, area_quemada_mensual,
                                     "outputs/figs/cartel_resumen.png",
-                                    etiquetas_modis$corta, etiquetas_modis$id_fuente,
+                                    etiquetas_modis$corta, etiquetas_modis$ids_fuente,
                                     etiquetas_modis$etiqueta_ba),
              format = "file"),
   tar_target(video_anomalias,
@@ -245,7 +238,7 @@ list(
                                      firms_mensual, area_quemada_mensual,
                                      parque, relieve_video,
                                      "outputs/figs/video_anomalias_termicas.mp4",
-                                     etiquetas_modis$corta, etiquetas_modis$id_fuente,
+                                     etiquetas_modis$corta, etiquetas_modis$ids_fuente,
                                      etiquetas_modis$etiqueta_ba, fps = 5),
              format = "file"),
   tar_target(anim_gif,
@@ -345,7 +338,7 @@ list(
   tar_target(cartel_resumen_viirs,
              generar_cartel_resumen(firms_mensual_viirs, area_quemada_mensual_viirs,
                                     "outputs/figs/viirs/cartel_resumen.png",
-                                    etiquetas_viirs$corta, etiquetas_viirs$id_fuente,
+                                    etiquetas_viirs$corta, etiquetas_viirs$ids_fuente,
                                     etiquetas_viirs$etiqueta_ba),
              format = "file"),
   tar_target(video_anomalias_viirs,
@@ -353,7 +346,7 @@ list(
                                      firms_mensual_viirs, area_quemada_mensual_viirs,
                                      parque, relieve_video,
                                      "outputs/figs/viirs/video_anomalias_termicas.mp4",
-                                     etiquetas_viirs$corta, etiquetas_viirs$id_fuente,
+                                     etiquetas_viirs$corta, etiquetas_viirs$ids_fuente,
                                      etiquetas_viirs$etiqueta_ba, fps = 5),
              format = "file"),
   tar_target(anim_gif_viirs,
@@ -453,7 +446,7 @@ list(
   tar_target(cartel_resumen_noaa20,
              generar_cartel_resumen(firms_mensual_noaa20, area_quemada_mensual_noaa20,
                                     "outputs/figs/noaa20/cartel_resumen.png",
-                                    etiquetas_noaa20$corta, etiquetas_noaa20$id_fuente,
+                                    etiquetas_noaa20$corta, etiquetas_noaa20$ids_fuente,
                                     etiquetas_noaa20$etiqueta_ba),
              format = "file"),
   tar_target(video_anomalias_noaa20,
@@ -461,7 +454,7 @@ list(
                                      firms_mensual_noaa20, area_quemada_mensual_noaa20,
                                      parque, relieve_video,
                                      "outputs/figs/noaa20/video_anomalias_termicas.mp4",
-                                     etiquetas_noaa20$corta, etiquetas_noaa20$id_fuente,
+                                     etiquetas_noaa20$corta, etiquetas_noaa20$ids_fuente,
                                      etiquetas_noaa20$etiqueta_ba, fps = 5),
              format = "file"),
   tar_target(anim_gif_noaa20,
