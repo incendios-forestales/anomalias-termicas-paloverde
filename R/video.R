@@ -276,12 +276,16 @@ datos_cuadros_video <- function(firms_mensual, area_quemada_mensual,
 
 # Textos del video y del cartel que dependen de la fuente de datos. El título
 # deriva el rango de años de los datos (para MODIS reproduce el histórico
-# "2001 - 2026"); el resto intercambia las siglas del sensor y del producto
-# de área quemada en leyendas, créditos y rótulos de panel.
-etiquetas_video <- function(anios, etiqueta_fuente, id_fuente, etiqueta_ba) {
+# "2001 - 2026") y el subtítulo enumera las fuentes usadas (fuentes_video de
+# etiquetas_plataforma(), p. ej. "MODIS_SP + MODIS_NRT + MCD64A1"); el resto
+# intercambia las siglas del sensor y del producto de área quemada en
+# leyendas, créditos y rótulos de panel.
+etiquetas_video <- function(anios, etiqueta_fuente, id_fuente, etiqueta_ba,
+                            fuentes_video) {
   list(
-    titulo = paste0("Anomalías Térmicas en el PN Palo Verde, ",
+    titulo = paste0("Anomalías térmicas en el PN Palo Verde, ",
                     min(anios), " - ", max(anios)),
+    subtitulo = fuentes_video,
     deteccion = paste0("Detección de fuego activo (", etiqueta_fuente, ")"),
     quema = paste0("Píxel de área quemada (", etiqueta_ba, ")"),
     creditos = paste0("Datos: NASA FIRMS (", id_fuente, ") · NASA LP DAAC (",
@@ -357,11 +361,13 @@ base_video <- function(relieve, parque, etiquetas) {
   lay <- layout_video()
   ret <- reticula_video(lay)
 
-  etiquetas <- sf::st_as_sf(ETIQUETAS_VIDEO, coords = c("lon", "lat"),
-                            crs = CRS_WGS84) |>
+  # `hitos`, no `etiquetas`: ese nombre sombrearía el parámetro con los
+  # textos por fuente (título, leyenda, créditos) y los dejaría en NULL.
+  hitos <- sf::st_as_sf(ETIQUETAS_VIDEO, coords = c("lon", "lat"),
+                        crs = CRS_WGS84) |>
     sf::st_transform(CRS_CRTM05)
-  pos_etiquetas <- cbind(sf::st_drop_geometry(etiquetas),
-                         sf::st_coordinates(etiquetas))
+  pos_etiquetas <- cbind(sf::st_drop_geometry(hitos),
+                         sf::st_coordinates(hitos))
 
   x0 <- lay$xlim[1] + lay$px(40)          # margen izquierdo del texto
   x1 <- lay$xlim[2] - lay$px(40)          # margen derecho
@@ -391,13 +397,18 @@ base_video <- function(relieve, parque, etiquetas) {
                        family = FUENTE_VIDEO, fontface = "italic", size = 2.9,
                        color = COLOR_TEXTO_SUAVE) +
     # --- Encabezado (banda superior, coordenadas de datos) ---
-    # Título fijo en una sola línea (el rango vive en el título); debajo va
-    # lo que cambia por cuadro: acumulados grandes y, más abajo, el mes con
-    # sus valores (ver cuadro_video()).
+    # Título fijo en una sola línea (el rango vive en el título) con la
+    # fuente principal como subtítulo; debajo va lo que cambia por cuadro:
+    # acumulados grandes y, más abajo, el mes con sus valores (ver
+    # cuadro_video()).
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(70),
                       label = etiquetas$titulo,
                       family = FUENTE_VIDEO, fontface = "bold", size = 6.4,
                       hjust = 0, vjust = 0, color = COLOR_TEXTO_VIDEO) +
+    ggplot2::annotate("text", x = x0, y = y_desde_arriba(97),
+                      label = etiquetas$subtitulo,
+                      family = FUENTE_VIDEO, size = 3.4,
+                      hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
     ggplot2::annotate("text", x = x0, y = y_desde_arriba(176),
                       label = esparcir("hectáreas quemadas acumuladas"),
                       family = FUENTE_VIDEO, size = 2.7,
@@ -424,22 +435,24 @@ base_video <- function(relieve, parque, etiquetas) {
     # los colores base de la paleta; en el mapa su luminancia varía con el
     # relieve). "Pastizal (marisma)" refleja el hallazgo del proyecto: lo que
     # WorldCover llama pastizal es en su mayoría el humedal estacional.
-    ggplot2::annotate("tile", x = x0 + lay$px(295),
+    # A 340 px del margen para que quepa la etiqueta de detección más larga
+    # ("Detección de fuego activo (VIIRS NOAA-20)").
+    ggplot2::annotate("tile", x = x0 + lay$px(340),
                       y = y_desde_abajo(c(106, 82)),
                       width = lay$px(11), height = lay$px(11),
                       fill = unname(PALETA_COBERTURA_VIDEO[c("10", "30")]),
                       color = NA) +
-    ggplot2::annotate("text", x = x0 + lay$px(311),
+    ggplot2::annotate("text", x = x0 + lay$px(356),
                       y = y_desde_abajo(c(106, 82)),
                       label = c("Bosque", "Pastizal (marisma)"),
                       family = FUENTE_VIDEO, size = 2.7,
                       hjust = 0, vjust = 0.5, color = COLOR_TEXTO_SUAVE) +
-    ggplot2::annotate("tile", x = x0 + lay$px(475),
+    ggplot2::annotate("tile", x = x0 + lay$px(520),
                       y = y_desde_abajo(c(106, 82)),
                       width = lay$px(11), height = lay$px(11),
                       fill = unname(PALETA_COBERTURA_VIDEO[c("95", "80")]),
                       color = NA) +
-    ggplot2::annotate("text", x = x0 + lay$px(491),
+    ggplot2::annotate("text", x = x0 + lay$px(536),
                       y = y_desde_abajo(c(106, 82)),
                       label = c("Manglar", "Agua"),
                       family = FUENTE_VIDEO, size = 2.7,
@@ -628,10 +641,11 @@ panel_cartel <- function(datos, columna, color, titulo, banda = NULL) {
 # Compone el cartel: encabezado y créditos del video (dibujados con grid) y
 # los dos paneles ggplot apilados. Target con format = "file".
 generar_cartel_resumen <- function(firms_mensual, area_quemada_mensual, dest,
-                                   etiqueta_fuente, id_fuente, etiqueta_ba) {
+                                   etiqueta_fuente, id_fuente, etiqueta_ba,
+                                   fuentes_video) {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual)
   etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
-                               etiqueta_ba)
+                               etiqueta_ba, fuentes_video)
   total_ha  <- sum(datos$hectareas, na.rm = TRUE)
   total_det <- sum(datos$detecciones)
 
@@ -705,6 +719,7 @@ generar_video_anomalias <- function(firms_parque, area_quemada_parque,
                                     firms_mensual, area_quemada_mensual,
                                     parque, relieve, dest,
                                     etiqueta_fuente, id_fuente, etiqueta_ba,
+                                    fuentes_video,
                                     fps = 10, congelar_s = 2.5,
                                     anios = NULL, dir_cuadros = NULL) {
   datos <- datos_cuadros_video(firms_mensual, area_quemada_mensual,
@@ -712,7 +727,7 @@ generar_video_anomalias <- function(firms_parque, area_quemada_parque,
   # El título conserva el rango completo del registro aunque `anios` filtre
   # los cuadros para pruebas.
   etiquetas <- etiquetas_video(datos$anio, etiqueta_fuente, id_fuente,
-                               etiqueta_ba)
+                               etiqueta_ba, fuentes_video)
   if (!is.null(anios)) datos <- datos[datos$anio %in% anios, ]
 
   if (is.null(dir_cuadros)) dir_cuadros <- tempfile("cuadros_video_")
