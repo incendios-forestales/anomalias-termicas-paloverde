@@ -132,6 +132,35 @@ más cercano porque un `distance()` sobre el raster de 10 m del parque no
 termina en tiempo razonable. Implementación en
 [`R/contexto_paisaje.R`](R/contexto_paisaje.R).
 
+### Un episodio con contraparte en tierra
+
+Casi nada de lo que mide el proyecto puede contrastarse contra una medición
+independiente. La excepción es el episodio del humedal Catalina de mayo de
+2026: un rayo lo encendió el 28 de mayo y el Minae-Sinac reportó **cerca de
+4000 ha afectadas**, con *Typha* como combustible principal. Hay entonces una
+fecha de ignición, una causa y una superficie oficial con las que auditar los
+productos satelitales.
+
+Los eventos así se declaran como filas de la tabla `EVENTOS` en
+[`R/evento.R`](R/evento.R) —igual que `PLATAFORMAS` mantiene a los sensores
+como hermanos— y de ahí salen las cifras, el mapa y la prosa de las cuatro
+plataformas. Dos resultados:
+
+- **El píxel manda.** Sobre el mismo fuego y los mismos días, MODIS registró 9
+  detecciones y las plataformas VIIRS entre 94 y 163. Un incendio de miles de
+  hectáreas se reduce a un puñado de píxeles en la serie más larga.
+- **El área quemada se queda muy corta.** MCD64A1/VNP64A1 marcan entre 299 y
+  706 ha, de 6 a 13 veces menos que la cifra oficial. El algoritmo declara
+  quemado un píxel de 500 m ante un cambio *persistente* de reflectancia, y una
+  quema de *Typha* sobre lámina de agua no lo produce. Las hectáreas de estos
+  reportes sirven para comparar años entre sí, **no** para responder cuánta
+  superficie se quemó.
+
+El área quemada se atribuye al evento por mes calendario y no por día: la fecha
+del píxel es una estimación algorítmica con incertidumbre de varios días —aquí
+hay píxeles fechados antes de la ignición reportada—, de modo que el recorte
+diario partiría la misma cicatriz.
+
 ### Video estilo cartel
 
 `outputs/figs/<plataforma>/video_anomalias_termicas.mp4` resume los 25 años en ~1 minuto,
@@ -246,7 +275,7 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 ├── _targets.R          # definición del pipeline
 ├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
 │                       #   cobertura de la tierra, contexto paisajístico,
-│                       #   visualización y tablas
+│                       #   eventos documentados, visualización y tablas
 ├── analysis/portada.qmd # portada         → index.html (GitHub Pages)
 ├── analysis/modis.qmd   # reporte MODIS   → modis/index.html
 ├── analysis/snpp.qmd    # reporte S-NPP   → snpp/index.html

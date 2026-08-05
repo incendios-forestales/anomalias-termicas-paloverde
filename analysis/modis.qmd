@@ -255,6 +255,97 @@ para responder si las detecciones ocurren en humedal, pero no para
 determinar qué tipo de vegetación se quemó; para eso siguen siendo
 preferibles los productos con detalle espacial fino.
 
+## El episodio del humedal Catalina, mayo de 2026 {#sec-evento}
+
+```{r}
+#| label: evento
+ev <- resumen_evento("catalina_2026", firms_parque, firms_mensual,
+                     area_quemada_parque, cobertura, humedales_detecciones)
+ev_ba <- cobertura_ba_evento("catalina_2026", area_quemada_mensual)
+ev_nivel <- nivel_evento("catalina_2026",
+                         tar_read(rangos_modis, store = almacen))
+e <- ev$evento
+```
+
+Casi todo lo que este reporte mide carece de contraparte en tierra: nadie
+levantó un inventario de las quemas de 2004 para comparar. El episodio de mayo
+de 2026 es la excepción, y por eso merece una sección propia. El
+`r fecha_es(e$ignicion)` la caída de un rayo encendió el interior del humedal
+Catalina —el mismo polígono que la sección anterior identifica como el gran
+sector estuarino del registro—, y una semana después `r e$fuente_medio`
+reportaba, con cifras del `r e$fuente_cifra`, que el fuego había afectado
+**cerca de `r format(e$ha_oficial, big.mark = " ")` hectáreas**
+([nota del `r fecha_es(e$fuente_fecha)`](`r e$fuente_url`)). El combustible
+principal fue la `r e$combustible`, una planta invasora que arde incluso sobre
+el agua. Hay entonces una fecha de ignición, una causa y una superficie
+oficial: tres cosas con las que auditar los productos satelitales.
+
+**Lo que vio esta plataforma.** MODIS registró **`r ev$n` detecciones** dentro
+del parque en `r ev$n_dias` días, del
+`r fecha_es(ev$primera, con_anio = FALSE)` al `r fecha_es(ev$ultima)` —el fuego
+apareció en las imágenes `r ev$latencia_prosa` después de la ignición
+reportada—, con una potencia radiativa acumulada de `r ev$frp_total` MW y un
+máximo de `r num_es(ev$frp_maximo)` MW en un solo píxel.
+
+![](`r file.path("..", tar_read(fig_evento_modis, store = almacen))`)
+
+```{r}
+#| label: evento-plataformas
+ev_plat <- resumen_evento_plataformas("catalina_2026", PLATAFORMAS$clave,
+                                      almacen)
+ev_viirs <- ev_plat[ev_plat$clave != "modis", ]
+```
+
+Esas `r ev$n` detecciones son el dato más elocuente de esta sección, pero por
+lo que **no** dicen. Los tres reportes VIIRS registran entre
+`r min(ev_viirs$detecciones)` y `r max(ev_viirs$detecciones)` detecciones del
+mismo incendio, en los mismos días y sobre el mismo humedal: entre
+**`r round(min(ev_viirs$detecciones) / ev$n)` y
+`r round(max(ev_viirs$detecciones) / ev$n)` veces más** que MODIS. La
+diferencia no está en el fuego sino
+en el instrumento. El píxel de ~1 km promedia la radiancia sobre una superficie
+siete veces mayor que el de 375 m, de modo que un frente de llama que ocupa una
+fracción del píxel eleva su temperatura aparente lo justo para pasar
+desapercibido. **Un incendio de miles de hectáreas puede reducirse a un puñado
+de píxeles en MODIS**, y ese es el argumento más concreto a favor de mantener
+las cuatro plataformas en paralelo en lugar de confiar en la serie más larga.
+
+**Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
+polígono dominante el *`r e$sector`*, y el **`r ev$pct_clase` %** cae en
+footprints donde WorldCover ve *`r tolower(ev$clase_objetivo)`*. Es la
+confirmación externa del hallazgo de la sección anterior: el "pastizal" que
+arde en Palo Verde no es potrero sino marisma, y esta vez sabemos por la fuente
+periodística que lo que ardió fue un typhal sobre agua.
+
+**Lo que el área quemada no vio.** Para `r meses_en_prosa(ev$meses_quemas)`,
+`r etq$etiqueta_ba` marca **`r ev$hectareas` hectáreas** quemadas dentro del
+parque, frente a las `r format(e$ha_oficial, big.mark = " ")` reportadas
+oficialmente. La cifra es además **parcial**: al generarse este reporte,
+`r etq$etiqueta_ba` aún no había publicado el gránulo de
+`r meses_en_prosa(ev_ba$faltantes)`, de modo que solo cubre el arranque del
+incendio. Aun así la brecha ya es de **`r ev$veces_menos` veces**, y el
+[reporte de Suomi-NPP](../snpp/) —cuyo producto VNP64A1 sí cubre los dos
+meses— la sitúa en
+`r num_es(ev_plat$veces_menos[ev_plat$clave == "snpp"])` veces con la cicatriz
+completa.
+
+La explicación está en cómo funciona el producto. `r etq$etiqueta_ba` declara
+quemado un píxel de 500 m cuando detecta un **cambio persistente de
+reflectancia**, y una quema de *Typha* sobre lámina de agua no lo produce: la
+vegetación emergente desaparece, el agua vuelve a dominar la señal y a las
+pocas semanas la superficie se parece a lo que era antes. A eso se suma que el
+píxel de 500 m no resuelve las cicatrices delgadas e interrumpidas que deja un
+fuego que avanza entre canales. No es un defecto de este episodio sino el
+comportamiento esperable del algoritmo en humedales, y advierte contra leer las
+hectáreas de la tabla anual como una medida de la superficie realmente
+afectada: **sirven para comparar años entre sí, no para responder cuántas
+hectáreas se quemaron.**
+
+**Nivel de procesamiento**: las detecciones del episodio provienen del
+procesamiento en `r ev_nivel$prosa`, que se refina cuando la NASA lo reprocesa
+a estándar, de modo que los conteos de esta sección pueden cambiar
+retroactivamente.
+
 ## ¿El fuego bordea el bosque o lo rodea?
 
 En el mapa interactivo las detecciones parecen dibujar el contorno del bloque

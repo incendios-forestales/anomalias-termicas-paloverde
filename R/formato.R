@@ -15,6 +15,19 @@ num_es <- function(x, decimales = 1) {
          nsmall = decimales, trim = TRUE, scientific = FALSE)
 }
 
+# Fecha en prosa española ("28 de mayo de 2026"). No se usa format(x, "%d de
+# %B de %Y") porque el nombre del mes saldría en el locale del sistema, que en
+# el contenedor es C: la prosa del reporte no puede depender de eso.
+fecha_es <- function(x, con_anio = TRUE) {
+  dia <- as.integer(format(x, "%d"))
+  mes <- tolower(MESES_ES_LARGO[as.integer(format(x, "%m"))])
+  if (con_anio) {
+    paste0(dia, " de ", mes, " de ", format(x, "%Y"))
+  } else {
+    paste0(dia, " de ", mes)
+  }
+}
+
 # Envoltorio para las tablas DT: aplica la coma decimal a las columnas
 # indicadas conservando el dato numérico subyacente (el ordenamiento de la
 # tabla sigue siendo numérico, no alfabético).

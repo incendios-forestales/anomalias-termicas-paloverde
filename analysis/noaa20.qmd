@@ -156,18 +156,18 @@ det_mayo <- sum(format(firms_parque$acq_date, "%Y-%m") == "2026-05")
 ```
 
 El mes más activo de todo el registro de NOAA-20 es **mayo de 2026**, con
-**`r det_mayo`** detecciones. Conviene subrayar que **este reporte es el único
-de los tres que cubre ese mes**: el procesamiento estándar de Suomi-NPP
-termina el 27 de abril de 2026 y el de MODIS el 30 de abril, así que ninguno
-de los otros dos productos alcanza todavía ese episodio.
+**`r det_mayo`** detecciones. Corresponde al incendio del humedal Catalina, que
+tiene [sección propia más abajo](#sec-evento) porque las cuatro plataformas lo
+registraron y existe una cifra oficial de superficie con la cual contrastarlo.
 
-Esto tiene una consecuencia práctica al comparar reportes. En el período
-común, NOAA-20 registra casi el doble de detecciones que Suomi-NPP, lo que
+Ese episodio tiene además una consecuencia al comparar reportes. Sobre todo el
+registro, NOAA-20 acumula casi el doble de detecciones que Suomi-NPP, lo que
 podría leerse como una diferencia de sensibilidad entre plataformas. No lo es:
 **descontando 2026, la relación baja a aproximadamente 1,2 a 1**, que es lo
 esperable de un mismo instrumento observando desde dos órbitas con distinta
-hora de paso. Casi toda la diferencia aparente proviene de que el registro de
-NOAA-20 llega un mes más lejos y ese mes concentró un episodio grande.
+hora de paso. Buena parte de la diferencia aparente proviene de un solo mes con
+un episodio grande, y de que NOAA-20 lo vio durante cinco días mientras
+Suomi-NPP lo vio durante tres.
 
 ## Cobertura de la tierra
 
@@ -228,6 +228,81 @@ por polígono, y *`r hallazgo$poligono_nombre`* (4 453 ha, clasificado como
 ocurran en manglar: dentro de ese polígono el manglar cubre apenas el 11,6 %
 de la superficie según WorldCover y el 4,1 % según la Cobertura Forestal 2023
 del SINAC.
+
+## El episodio del humedal Catalina, mayo de 2026 {#sec-evento}
+
+```{r}
+#| label: evento
+ev <- resumen_evento("catalina_2026", firms_parque, firms_mensual,
+                     area_quemada_parque, cobertura, humedales_detecciones)
+ev_ba <- cobertura_ba_evento("catalina_2026", area_quemada_mensual)
+ev_nivel <- nivel_evento("catalina_2026",
+                         tar_read(rangos_noaa20, store = almacen))
+e <- ev$evento
+```
+
+Casi todo lo que este reporte mide carece de contraparte en tierra. El episodio
+de mayo de 2026 es la excepción: el `r fecha_es(e$ignicion)` la caída de un
+rayo encendió el interior del humedal Catalina, y una semana después
+`r e$fuente_medio` reportaba, con cifras del `r e$fuente_cifra`, que el fuego
+había afectado **cerca de `r format(e$ha_oficial, big.mark = " ")` hectáreas**
+([nota del `r fecha_es(e$fuente_fecha)`](`r e$fuente_url`)). El combustible
+principal fue la `r e$combustible`, una planta invasora que arde incluso sobre
+el agua. Hay entonces una fecha de ignición, una causa y una superficie
+oficial: tres cosas con las que auditar los productos satelitales.
+
+**Lo que vio esta plataforma.** De las cuatro, NOAA-20 es la que siguió el
+incendio durante más tiempo: **`r ev$n` detecciones** en `r ev$n_dias` días,
+del `r fecha_es(ev$primera, con_anio = FALSE)` al `r fecha_es(ev$ultima)` —el
+fuego apareció en las imágenes `r ev$latencia_prosa` después de la ignición
+reportada—, con una potencia radiativa acumulada de `r ev$frp_total` MW y un
+máximo de `r num_es(ev$frp_maximo)` MW en un solo píxel. `r ev$n_nocturnas` de
+esas detecciones son nocturnas: el fuego no se apagaba de noche. El día pico
+fue el
+`r fecha_es(ev$por_dia$acq_date[which.max(ev$por_dia$detecciones)], con_anio = FALSE)`,
+con `r max(ev$por_dia$detecciones)` detecciones.
+
+![](`r file.path("..", tar_read(fig_evento_noaa20, store = almacen))`)
+
+**Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
+polígono dominante el *`r e$sector`* del Registro Nacional de Humedales, el
+mismo sector estuarino de 4 453 ha de la sección anterior, y el
+**`r ev$pct_clase` %** cae en footprints donde WorldCover ve
+*`r tolower(ev$clase_objetivo)`*. Es la demostración más nítida de aquel
+hallazgo: el "pastizal" que arde en Palo Verde no es potrero sino marisma, y
+esta vez la fuente periodística confirma que lo que ardió fue un typhal sobre
+agua.
+
+**Lo que el área quemada no vio.** Para `r meses_en_prosa(ev$meses_quemas)`,
+`r etq$etiqueta_ba` marca **`r ev$hectareas` hectáreas** quemadas dentro del
+parque, frente a las `r format(e$ha_oficial, big.mark = " ")` reportadas
+oficialmente: el producto satelital ve **`r ev$veces_menos` veces menos
+superficie** que la contabilizada en tierra. El mapa lo muestra sin necesidad
+de cifras: las detecciones de fuego activo cubren buena parte del sector,
+mientras que los píxeles de área quemada forman unas pocas manchas sueltas.
+
+La explicación está en cómo funciona el producto. `r etq$etiqueta_ba` declara
+quemado un píxel de 500 m cuando detecta un **cambio persistente de
+reflectancia**, y una quema de *Typha* sobre lámina de agua no lo produce: la
+vegetación emergente desaparece, el agua vuelve a dominar la señal y a las
+pocas semanas la superficie se parece a lo que era antes. A eso se suma que el
+píxel de 500 m no resuelve las cicatrices delgadas e interrumpidas que deja un
+fuego que avanza entre canales. No es un defecto de este episodio sino el
+comportamiento esperable del algoritmo en humedales, y advierte contra leer las
+hectáreas de la tabla anual como una medida de la superficie realmente
+afectada: **sirven para comparar años entre sí, no para responder cuántas
+hectáreas se quemaron.** A la advertencia general de este reporte —que las
+hectáreas no provienen de NOAA-20 sino de Suomi-NPP— se suma entonces esta
+otra, que afecta por igual a las cuatro plataformas.
+
+**Qué tan excepcional es.** Con `r ev$n_mes` detecciones, mayo de 2026 es el
+mes más intenso de los `r ev$n_meses_serie` del registro de esta plataforma.
+
+**Nivel de procesamiento**: las detecciones del episodio provienen del
+procesamiento en `r ev_nivel$prosa` —NOAA-20 es la única plataforma cuyo
+procesamiento estándar ya alcanzó los primeros días del incendio—. El tramo en
+tiempo casi real se refina cuando la NASA lo reprocesa, de modo que las cifras
+de los últimos días pueden cambiar retroactivamente.
 
 ## ¿El fuego bordea el bosque o lo rodea?
 

@@ -172,6 +172,73 @@ tiene la misma probabilidad de arder, lo que ignora la accesibilidad y la
 cercanía a caminos, linderos y cultivos. Descarta la explicación geométrica
 del patrón, pero no identifica la causa de las igniciones.
 
+## Un episodio con cifra oficial: Catalina, mayo de 2026
+
+```{r}
+#| label: evento
+ev_plat <- resumen_evento_plataformas("catalina_2026", claves, almacen)
+e <- evento("catalina_2026")
+ev_ba <- ev_plat[!is.na(ev_plat$veces_menos), ]
+# Un producto de área quemada que todavía no publica alguno de los meses del
+# episodio da una cifra parcial: hay que decirlo, o el extremo bajo del rango
+# de hectáreas se leería como una diferencia entre sensores.
+ba_parcial <- purrr::map_lgl(claves, function(k) {
+  !cobertura_ba_evento("catalina_2026",
+                       tar_read_raw(paste0("area_quemada_mensual_", k),
+                                    store = almacen))$completa
+})
+ba_incompletos <- unique(ev_plat$plataforma[ba_parcial])
+```
+
+El `r fecha_es(e$ignicion)` un rayo encendió el interior del humedal Catalina,
+en el sector estuarino del parque. `r e$fuente_medio` reportó, con cifras
+del `r e$fuente_cifra`, que el fuego afectó **cerca de
+`r format(e$ha_oficial, big.mark = " ")` hectáreas**
+([nota del `r fecha_es(e$fuente_fecha)`](`r e$fuente_url`)); el combustible
+principal fue la `r e$combustible`, una planta invasora que arde incluso sobre
+el agua. Es el único episodio del registro con fecha de ignición, causa y
+superficie conocidas por una fuente ajena al satélite, y por eso permite algo
+que ninguna otra parte de estos reportes permite: **auditar los productos
+contra una medición hecha en tierra**.
+
+Las cuatro plataformas lo vieron, y la comparación entre ellas es en sí misma
+un resultado. Sobre el mismo fuego, los mismos días y el mismo humedal:
+
+```{r}
+#| label: tabla-evento
+#| output: asis
+for (i in seq_len(nrow(ev_plat))) {
+  f <- ev_plat[i, ]
+  cat(sprintf("- **%s** — %s detecciones en %s días; FRP máximo %s MW.\n",
+              f$plataforma, num_es(f$detecciones, 0), f$dias,
+              num_es(f$frp_maximo)))
+}
+```
+
+La diferencia no está en el fuego sino en el píxel: el de MODIS mide ~1 km de
+lado y promedia la radiancia sobre una superficie siete veces mayor que el de
+375 m de VIIRS, de modo que un frente de llama que ocupa una fracción del píxel
+puede no elevar su temperatura aparente lo suficiente. **Un incendio de miles
+de hectáreas se reduce a un puñado de píxeles en la serie más larga**, que es
+el argumento más concreto a favor de mantener las cuatro plataformas en
+paralelo.
+
+**Y el área quemada se queda muy corta.** Para mayo y junio de 2026 los
+productos de área quemada marcan entre
+`r min(ev_ba$hectareas)` y `r max(ev_ba$hectareas)` hectáreas dentro del
+parque, frente a las `r format(e$ha_oficial, big.mark = " ")` reportadas
+oficialmente: **entre `r num_es(min(ev_ba$veces_menos))` y
+`r num_es(max(ev_ba$veces_menos))` veces menos superficie**.
+`r if (length(ba_incompletos)) paste0("El extremo bajo de ese rango es además parcial: al generarse esta página, el producto de ", paste(ba_incompletos, collapse = " y "), " aún no había publicado todos los meses del episodio.") else ""`
+La razón está en
+el algoritmo: declara quemado un píxel de 500 m cuando detecta un cambio
+persistente de reflectancia, y una quema de *Typha* sobre lámina de agua no lo
+produce —la vegetación emergente desaparece, el agua vuelve a dominar la señal
+y a las pocas semanas la superficie se parece a lo que era antes—. Las
+hectáreas de estos reportes **sirven para comparar años entre sí, no para
+responder cuántas hectáreas se quemaron**. Cada reporte desarrolla el episodio
+con sus propias cifras.
+
 ## Los reportes
 
 ```{r}

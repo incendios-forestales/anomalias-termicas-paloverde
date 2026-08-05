@@ -230,6 +230,80 @@ quemas ocurran en manglar: dentro de ese polígono el manglar cubre el 11,6 %
 de la superficie según WorldCover y el 4,1 % según la Cobertura Forestal 2023
 del SINAC.
 
+## El episodio del humedal Catalina, mayo de 2026 {#sec-evento}
+
+```{r}
+#| label: evento
+ev <- resumen_evento("catalina_2026", firms_parque, firms_mensual,
+                     area_quemada_parque, cobertura, humedales_detecciones)
+ev_ba <- cobertura_ba_evento("catalina_2026", area_quemada_mensual)
+e <- ev$evento
+# El episodio es el mismo para las cuatro plataformas, así que las
+# comparaciones de esta sección se calculan en vez de escribirse (R/evento.R).
+ev_plat <- resumen_evento_plataformas("catalina_2026", PLATAFORMAS$clave,
+                                      almacen)
+frp_lider <- ev_plat$clave[which.max(ev_plat$frp_maximo)] == "noaa21"
+noche_lider <- ev_plat$clave[which.max(ev_plat$pct_nocturnas)] == "noaa21"
+```
+
+Un registro tan corto como el de NOAA-21 se entiende mejor a través del
+episodio que lo domina. El `r fecha_es(e$ignicion)` la caída de un rayo
+encendió el interior del humedal Catalina —el sector estuarino de la sección
+anterior— y una semana después `r e$fuente_medio` reportaba, con cifras del
+`r e$fuente_cifra`, que el fuego había afectado **cerca de
+`r format(e$ha_oficial, big.mark = " ")` hectáreas**
+([nota del `r fecha_es(e$fuente_fecha)`](`r e$fuente_url`)). El combustible
+principal fue la `r e$combustible`, una planta invasora que arde incluso sobre
+el agua. Es el único episodio del registro con una fecha de ignición, una causa
+y una superficie oficial conocidas: la ocasión de contrastar el satélite contra
+algo medido en tierra.
+
+**Lo que vio esta plataforma.** NOAA-21 registró **`r ev$n` detecciones**
+dentro del parque en `r ev$n_dias` días, del
+`r fecha_es(ev$primera, con_anio = FALSE)` al `r fecha_es(ev$ultima)` —el fuego
+apareció en las imágenes `r ev$latencia_prosa` después de la ignición
+reportada—, con una potencia radiativa acumulada de `r ev$frp_total` MW y un
+máximo de **`r num_es(ev$frp_maximo)` MW**`r if (frp_lider) ", el valor más alto que registró cualquiera de las cuatro plataformas durante el incendio" else ""`.
+`r ev$n_nocturnas` de esas detecciones son
+nocturnas`r if (noche_lider) ", la proporción más alta de las cuatro" else ""`:
+el fuego no se apagaba de noche y NOAA-21 quedó bien situada para verlo.
+
+![](`r file.path("..", tar_read(fig_evento_noaa21, store = almacen))`)
+
+**Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
+polígono dominante el *`r e$sector`*, y el **`r ev$pct_clase` %** cae en
+footprints donde WorldCover ve *`r tolower(ev$clase_objetivo)`*. Es la
+confirmación externa del hallazgo de la sección anterior: el "pastizal" que
+arde en Palo Verde no es potrero sino marisma, y esta vez la fuente
+periodística precisa que lo que ardió fue un typhal sobre agua.
+
+**Lo que el área quemada no vio.** Para `r meses_en_prosa(ev$meses_quemas)`,
+`r etq$etiqueta_ba` marca **`r ev$hectareas` hectáreas** quemadas dentro del
+parque, frente a las `r format(e$ha_oficial, big.mark = " ")` reportadas
+oficialmente: el producto satelital ve **`r ev$veces_menos` veces menos
+superficie** que la contabilizada en tierra. El mapa lo muestra sin necesidad
+de cifras: las detecciones cubren buena parte del sector, mientras que los
+píxeles de área quemada forman unas pocas manchas sueltas.
+
+`r etq$etiqueta_ba` declara quemado un píxel de 500 m cuando detecta un
+**cambio persistente de reflectancia**, y una quema de *Typha* sobre lámina de
+agua no lo produce: la vegetación emergente desaparece, el agua vuelve a
+dominar la señal y a las pocas semanas la superficie se parece a lo que era
+antes. A eso se suma que el píxel de 500 m no resuelve las cicatrices delgadas
+e interrumpidas que deja un fuego que avanza entre canales. No es un defecto de
+este episodio sino el comportamiento esperable del algoritmo en humedales, y
+advierte contra leer las hectáreas de la tabla anual como una medida de la
+superficie realmente afectada: **sirven para comparar años entre sí, no para
+responder cuántas hectáreas se quemaron.**
+
+**Qué tan excepcional es.** Con `r ev$n_mes` detecciones, mayo de 2026 es el
+mes más intenso de los `r ev$n_meses_serie` del registro. Es también la
+ilustración de la segunda advertencia de la introducción: un solo episodio
+aporta el `r num_es(100 * ev$n / nrow(firms_parque))` % de todas las
+detecciones de esta plataforma, así que buena parte de lo que este reporte
+describe como "el patrón de NOAA-21" es, en realidad, el patrón de este
+incendio. Vale la pena releerlo con eso en mente.
+
 ## ¿El fuego bordea el bosque o lo rodea?
 
 ```{r}

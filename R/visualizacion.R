@@ -9,6 +9,12 @@ COLOR_DETECCIONES <- "#bf5b17"
 MESES_ES <- c("Ene", "Feb", "Mar", "Abr", "May", "Jun",
               "Jul", "Ago", "Set", "Oct", "Nov", "Dic")
 
+# Los mismos, completos: los rótulos de figura usan la forma abreviada, pero la
+# prosa de los reportes nombra los meses enteros.
+MESES_ES_LARGO <- c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                    "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre",
+                    "Diciembre")
+
 # Mapa animado de detecciones por mes sobre el polígono del parque.
 # `mensual` (con meses en 0 incluidos) define la secuencia completa de cuadros;
 # los meses sin detecciones se representan con un cuadro vacío mediante puntos

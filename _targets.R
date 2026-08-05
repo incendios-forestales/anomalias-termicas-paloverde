@@ -249,6 +249,18 @@ list(
                                            "cobertura_detecciones.png"),
                                  etiquetas$pie_cobertura),
                format = "file"),
+    # Mapa del incendio del humedal Catalina (mayo-junio de 2026), el único
+    # evento del registro con una cifra oficial de superficie contra la cual
+    # contrastar el producto de área quemada. Ver R/evento.R.
+    tar_target(fig_evento,
+               grafico_evento("catalina_2026", firms_parque,
+                              area_quemada_parque, parque, humedales,
+                              archivos_worldcover, bbox_descarga,
+                              file.path("outputs/figs", clave,
+                                        "evento_catalina_2026.png"),
+                              etiquetas$fuente_fig, etiquetas$etiqueta_ba,
+                              etiquetas$pie_animacion),
+               format = "file"),
     tar_target(tabla_area_quemada,
                tabla_area_quemada_csv(area_quemada_parque,
                                       file.path("outputs/tables", clave,
