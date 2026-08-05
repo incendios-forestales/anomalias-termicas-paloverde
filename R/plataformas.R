@@ -66,6 +66,11 @@ etiquetas_plataforma <- function(clave) {
     corta            = p$corta,
     id_fuente        = id,
     ids_fuente       = ids,
+    # Subtítulo del video: todas las fuentes que componen lo que se ve
+    # (detecciones estándar + cola NRT + producto de área quemada). unique()
+    # evita repetir la NRT cuando es también la principal (NOAA-21).
+    fuentes_video    = paste(unique(c(id, p$fuente_nrt, p$ba_etiqueta)),
+                             collapse = " + "),
     # Rótulo del sensor en subtítulos de figura y encabezados de tabla
     fuente_fig       = paste0(p$corta, " (FIRMS)"),
     etiqueta_ba      = p$ba_etiqueta,
