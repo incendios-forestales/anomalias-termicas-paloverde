@@ -31,3 +31,6 @@ analysis/noaa21.html
 
 .DS_Store
 Thumbs.db
+
+# Sondeos exploratorios fuera del pipeline de targets; aún no se publican.
+/sondeos/
