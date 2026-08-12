@@ -294,6 +294,25 @@ máximo de `r num_es(ev$frp_maximo)` MW en un solo píxel.
 ev_plat <- resumen_evento_plataformas("catalina_2026", PLATAFORMAS$clave,
                                       almacen)
 ev_viirs <- ev_plat[ev_plat$clave != "modis", ]
+
+# La brecha con la cifra oficial se cuenta distinto según MCD64A1 haya
+# publicado ya todos los meses del evento o no: mientras falten gránulos la
+# cifra es parcial y hay que advertirlo (ver cobertura_ba_evento).
+brecha_snpp <- num_es(ev_plat$veces_menos[ev_plat$clave == "snpp"])
+prosa_brecha <- if (ev_ba$completa) paste0(
+  "Con la cicatriz completa —", etq$etiqueta_ba, " ya publicó todos los ",
+  "meses del evento— la brecha es de **", ev$veces_menos, " veces**; el ",
+  "[reporte de Suomi-NPP](../snpp/), con VNP64A1, la sitúa en ", brecha_snpp,
+  " veces."
+) else paste0(
+  "La cifra es además **parcial**: al generarse este reporte, ",
+  etq$etiqueta_ba, " aún no había publicado el gránulo de ",
+  meses_en_prosa(ev_ba$faltantes), ", de modo que solo cubre el arranque ",
+  "del incendio. Aun así la brecha ya es de **", ev$veces_menos, " veces**, ",
+  "y el [reporte de Suomi-NPP](../snpp/) —cuyo producto VNP64A1 sí cubre ",
+  "los dos meses— la sitúa en ", brecha_snpp,
+  " veces con la cicatriz completa."
+)
 ```
 
 Esas `r ev$n` detecciones son el dato más elocuente de esta sección, pero por
@@ -320,14 +339,7 @@ periodística que lo que ardió fue un typhal sobre agua.
 **Lo que el área quemada no vio.** Para `r meses_en_prosa(ev$meses_quemas)`,
 `r etq$etiqueta_ba` marca **`r ev$hectareas` hectáreas** quemadas dentro del
 parque, frente a las `r format(e$ha_oficial, big.mark = " ")` reportadas
-oficialmente. La cifra es además **parcial**: al generarse este reporte,
-`r etq$etiqueta_ba` aún no había publicado el gránulo de
-`r meses_en_prosa(ev_ba$faltantes)`, de modo que solo cubre el arranque del
-incendio. Aun así la brecha ya es de **`r ev$veces_menos` veces**, y el
-[reporte de Suomi-NPP](../snpp/) —cuyo producto VNP64A1 sí cubre los dos
-meses— la sitúa en
-`r num_es(ev_plat$veces_menos[ev_plat$clave == "snpp"])` veces con la cicatriz
-completa.
+oficialmente. `r prosa_brecha`
 
 La explicación está en cómo funciona el producto. `r etq$etiqueta_ba` declara
 quemado un píxel de 500 m cuando detecta un **cambio persistente de
