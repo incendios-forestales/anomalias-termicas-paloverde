@@ -301,11 +301,7 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 
 ## Trabajo futuro
 
-- Incorporar las fuentes de FIRMS que faltan: los productos en tiempo casi
-  real (`MODIS_NRT`, `VIIRS_*_NRT`), empalmando la cola NRT de cada plataforma
-  a su serie estándar y deduplicando el traslape, y NOAA-21, que hoy **solo**
-  existe en NRT (desde 2024-01) y por eso no tiene aún una cadena propia.
-- Comparar formalmente las tres plataformas en sus traslapes, en vez de solo
+- Comparar formalmente las cuatro plataformas en sus traslapes, en vez de solo
   publicarlas lado a lado: cuantificar cuánto de la diferencia entre series es
   resolución, cuánto hora de paso y cuánto episodios puntuales. El reporte de
   NOAA-20 muestra por qué hace falta: casi toda su ventaja aparente sobre
