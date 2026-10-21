@@ -192,9 +192,13 @@ Para Catalina el perímetro mide **3 293 ha**, de las cuales 886 son islotes
 sin quemar (bosque que el fuego rodeó) y 702 superan 0,44 (severidad alta):
 casi exactamente las 706 ha de VNP64A1. Las tres cifras no se contradicen,
 miden cosas distintas: el producto de 500 m captura el núcleo severo y pierde
-el resto. Salidas: `outputs/maps/cicatriz_catalina_2026.gpkg` (perímetro en
-CRTM05) y `outputs/tables/cicatriz_catalina_2026.csv`; el dNBR queda en
-`data/processed/`, regenerable.
+el resto. Salidas: `outputs/figs/cicatriz_catalina_2026.png` (dNBR con el perímetro),
+`outputs/maps/cicatriz_catalina_2026.gpkg` (perímetro en CRTM05) y
+`outputs/tables/cicatriz_catalina_2026.csv`; el dNBR queda en
+`data/processed/`, regenerable. El perímetro se dibuja también sobre el mapa
+de isócronas y la curva de avance lo lleva como línea de referencia junto a
+la cifra oficial y el área quemada: las cuatro mediciones del evento en una
+figura.
 
 El área quemada se atribuye al evento por mes calendario y no por día: la fecha
 del píxel es una estimación algorítmica con incertidumbre de varios días —aquí

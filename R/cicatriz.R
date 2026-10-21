@@ -186,3 +186,80 @@ tabla_cicatriz_csv <- function(cicatriz, dest) {
   readr::write_csv(tabla, dest)
   dest
 }
+
+# Pie de las figuras hechas con Sentinel-2. La atribución es la que pide la
+# licencia de Copernicus.
+PIE_SENTINEL2 <- paste0("Datos: Copernicus Sentinel-2 L2A (Earth Search / AWS) y SINAC. ",
+                        "Contains modified Copernicus Sentinel data")
+
+# Mapa de la cicatriz: el dNBR sobre el sector del evento con el perímetro
+# encima, mismo encuadre que las otras figuras del evento. La escala es
+# divergente en torno a cero porque el signo importa: negativo es
+# reverdecimiento (la marisma que se inundó entre las fechas), positivo es
+# pérdida de vegetación; los cortes marcan los umbrales de severidad.
+grafico_cicatriz_evento <- function(cicatriz, dnbr, parque, humedales, dest,
+                                    fuente_datos) {
+  e <- cicatriz$evento
+  sector <- humedales[grepl(e$sector, humedales$nom_hum, fixed = TRUE), ] |>
+    sf::st_transform(CRS_CRTM05)
+  parque <- sf::st_transform(parque, CRS_CRTM05)
+  caja <- sf::st_bbox(sector)
+  margen <- 0.12 * max(caja["xmax"] - caja["xmin"], caja["ymax"] - caja["ymin"])
+  ventana <- terra::ext(caja["xmin"] - margen, caja["xmax"] + margen,
+                        caja["ymin"] - margen, caja["ymax"] + margen)
+  # Al CRS de los mapas (CRTM05) y recortado al encuadre antes de pasarlo a
+  # ggplot: el raster completo del parque son 1,7 millones de celdas.
+  d <- terra::rast(dnbr) |>
+    terra::project(CRS_CRTM05, method = "bilinear", res = S2_RES_M) |>
+    terra::crop(ventana)
+  celdas <- terra::as.data.frame(d, xy = TRUE, na.rm = TRUE)
+  celdas$dnbr <- pmin(pmax(celdas$dnbr, -0.3), 0.7)
+
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_raster(data = celdas, ggplot2::aes(x, y, fill = dnbr)) +
+    ggplot2::scale_fill_gradient2(
+      low = "#2166ac", mid = "grey97", high = "#b2182b", midpoint = 0,
+      limits = c(-0.3, 0.7),
+      breaks = c(-0.3, 0, DNBR_CAMBIO, DNBR_MODERADO, DNBR_ALTO, 0.7),
+      labels = c("−0,3", "0", "0,10", "0,27", "0,44", "0,7"),
+      name = "dNBR"
+    ) +
+    ggplot2::geom_sf(data = parque, fill = NA, color = "grey30",
+                     linewidth = 0.5) +
+    ggplot2::geom_sf(data = sf::st_union(sector), fill = NA, color = "grey15",
+                     linewidth = 0.7, linetype = "22") +
+    ggplot2::geom_sf(data = cicatriz$perimetro, fill = NA,
+                     color = COLOR_CICATRIZ, linewidth = 0.8) +
+    ggplot2::coord_sf(
+      xlim = c(caja["xmin"] - margen, caja["xmax"] + margen),
+      ylim = c(caja["ymin"] - margen, caja["ymax"] + margen),
+      datum = sf::st_crs(CRS_WGS84), expand = FALSE
+    ) +
+    ggplot2::labs(
+      title = paste0("La cicatriz del ", e$nombre, " en Sentinel-2"),
+      subtitle = paste0(
+        "dNBR entre el ", format(e$s2_previa, "%d/%m/%Y"), " y el ",
+        format(e$s2_post, "%d/%m/%Y"), " a 20 m: positivo es pérdida de",
+        " vegetación, negativo es reverdecimiento.\nEl trazo azul es el",
+        " perímetro de la cicatriz (", format(round(cicatriz$cifras$perimetro_ha),
+                                             big.mark = " "),
+        " ha, islotes incluidos); el discontinuo delimita el ", e$sector,
+        "\ndel Registro Nacional de Humedales"
+      ),
+      x = NULL, y = NULL, caption = fuente_datos
+    ) +
+    ggplot2::guides(fill = ggplot2::guide_colorbar(barwidth = 18,
+                                                   barheight = 0.6)) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_line(color = "grey92", linewidth = 0.3),
+      plot.title = ggplot2::element_text(face = "bold"),
+      plot.subtitle = ggplot2::element_text(size = 9, lineheight = 1.2),
+      legend.position = "bottom",
+      plot.caption = ggplot2::element_text(size = 7, color = "grey40")
+    )
+
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 7, height = 6.8, dpi = 150)
+  dest
+}

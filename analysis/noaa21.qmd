@@ -271,7 +271,8 @@ el fuego no se apagaba de noche y NOAA-21 quedó bien situada para verlo.
 ![](`r file.path("..", tar_read(fig_evento_noaa21, store = almacen))`)
 
 La [portada](../) une los pases de las tres plataformas VIIRS en un mapa de
-isócronas del avance del episodio, con la envolvente acumulada pase a pase.
+isócronas del avance del episodio y mide la cicatriz a 20 m con Sentinel-2:
+las cuatro cifras del evento, leídas juntas.
 
 **Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
 polígono dominante el *`r e$sector`*, y el **`r ev$pct_clase` %** cae en

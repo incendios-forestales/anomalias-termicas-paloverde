@@ -290,7 +290,8 @@ máximo de `r num_es(ev$frp_maximo)` MW en un solo píxel.
 ![](`r file.path("..", tar_read(fig_evento_modis, store = almacen))`)
 
 La [portada](../) une los pases de las tres plataformas VIIRS en un mapa de
-isócronas del avance del episodio, con la envolvente acumulada pase a pase.
+isócronas del avance del episodio y mide la cicatriz a 20 m con Sentinel-2:
+las cuatro cifras del evento, leídas juntas.
 
 ```{r}
 #| label: evento-plataformas
