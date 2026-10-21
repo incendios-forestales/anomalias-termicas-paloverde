@@ -305,6 +305,17 @@ list(
                "outputs/figs/series_plataformas.png"),
              format = "file"),
 
+  # --- Sentinel-2 del episodio Catalina ------------------------------------
+  # Par de escenas L2A (previa y posterior, declaradas en EVENTOS) recortadas
+  # al parque: el insumo de la cicatriz por dNBR. Búsqueda STAC y lectura de
+  # COG públicos, sin credenciales. Ver R/descarga_sentinel2.R.
+  tar_target(escenas_s2_catalina, escenas_s2_evento("catalina_2026", parque),
+             iteration = "group"),
+  tar_target(bandas_s2_catalina,
+             descargar_banda_s2(escenas_s2_catalina, parque,
+                                "data/raw/sentinel2"),
+             pattern = map(escenas_s2_catalina), format = "file"),
+
   # --- Avance del episodio Catalina: isócronas por pase -----------------
   # Única figura que une plataformas: la envolvente acumulada de los
   # footprints VIIRS pase a pase (S-NPP, NOAA-20 y NOAA-21 juntos observan el

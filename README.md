@@ -167,6 +167,19 @@ quemada y la cifra oficial. Salidas: `outputs/figs/isocronas_catalina_2026.png`,
 `outputs/figs/avance_catalina_2026.png` y
 `outputs/tables/pases_catalina_2026.csv`.
 
+Para medir la cicatriz con independencia de los productos de 500 m, cada
+evento declara además su par de escenas **Sentinel-2 L2A** (previa y
+posterior, columnas `s2_previa`/`s2_post` de `EVENTOS`). El pipeline las
+busca en el catálogo STAC de Earth Search y recorta las bandas B8A, B12 y SCL
+(20 m) al parque con 2 km de margen leyendo los COG públicos de AWS por
+`/vsicurl/`, sin credenciales y sin bajar la tesela completa
+([`R/descarga_sentinel2.R`](R/descarga_sentinel2.R), archivos en
+`data/raw/sentinel2/`). Las fechas se eligen a mano porque la nubosidad del
+catálogo es la de la tesela entera y engaña: para Catalina (14 de mayo y 11 de
+junio de 2026) el catálogo dice 9,5 % y 13,4 %, pero sobre el parque la banda
+SCL no marca nubes. El cálculo del dNBR y del perímetro de la cicatriz a
+partir de estas bandas es el siguiente paso.
+
 El área quemada se atribuye al evento por mes calendario y no por día: la fecha
 del píxel es una estimación algorítmica con incertidumbre de varios días —aquí
 hay píxeles fechados antes de la ignición reportada—, de modo que el recorte
@@ -284,7 +297,7 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 
 ```
 ├── _targets.R          # definición del pipeline
-├── R/                  # funciones: descarga (FIRMS, WFS), procesamiento,
+├── R/                  # funciones: descarga (FIRMS, WFS, LP DAAC, Sentinel-2), procesamiento,
 │                       #   cobertura de la tierra, contexto paisajístico,
 │                       #   eventos documentados, visualización y tablas
 ├── analysis/portada.qmd # portada         → index.html (GitHub Pages)
@@ -307,6 +320,7 @@ Constantes adicionales (buffer de descarga, tamaño de fragmento, productos de
 | [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Anomalías térmicas MODIS Collection 6.1 (MODIS_SP), DOI: 10.5067/FIRMS/MODIS/MCD14ML, y VIIRS 375 m de Suomi-NPP (VIIRS_SNPP_SP), DOI: 10.5067/VIIRS/VNP14IMG.002 | Acceso abierto; se agradece atribución a NASA FIRMS |
 | [NASA LP DAAC](https://lpdaac.usgs.gov/) | Área quemada mensual MCD64A1 v6.1 (500 m), DOI: 10.5067/MODIS/MCD64A1.061, y VNP64A1 v002 (VIIRS/NPP, 500 m), DOI: 10.5067/VIIRS/VNP64A1.002 | Acceso abierto con Earthdata Login; se agradece atribución a NASA LP DAAC |
 | [SINAC](https://geos1pne.sirefor.go.cr/wfs) | Polígono del PN Palo Verde, capa oficial 1:5000 publicada en 2019 (`PNE:areas_silvestres_protegidas`), Registro Nacional de Humedales, actualización 2016–2018 (`PNE:registro_nacional_humedales`), y Cobertura Forestal 2023 (`PNE:cobertura_forestal_2023`) | Datos públicos del Estado costarricense |
+| [Copernicus Sentinel-2](https://sentinels.copernicus.eu/) vía [Earth Search](https://earth-search.aws.element84.com/v1) y [Sentinel-2 COGs en AWS](https://registry.opendata.aws/sentinel-2-l2a-cogs/) | Escenas L2A (reflectancia de superficie) previa y posterior a cada evento documentado, bandas B8A, B12 y SCL a 20 m recortadas al parque | Datos Copernicus de acceso libre; atribución "Contains modified Copernicus Sentinel data" |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura de la tierra 2021 a 10 m (v200), DOI: 10.5281/zenodo.7254221 | CC BY 4.0; atribución a ESA WorldCover |
 | [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) | Modelo de elevación (formato Terrarium, zoom 13) para el relieve del video | Datos abiertos en AWS; atribución a Mapzen y las fuentes del DEM (SRTM, NASA) |
 
