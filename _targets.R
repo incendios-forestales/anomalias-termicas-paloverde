@@ -305,6 +305,31 @@ list(
                "outputs/figs/series_plataformas.png"),
              format = "file"),
 
+  # --- Avance del episodio Catalina: isócronas por pase -----------------
+  # Única figura que une plataformas: la envolvente acumulada de los
+  # footprints VIIRS pase a pase (S-NPP, NOAA-20 y NOAA-21 juntos observan el
+  # parque cada pocas horas). Ver isocronas_evento() en R/evento.R.
+  tar_target(isocronas_catalina,
+             isocronas_evento("catalina_2026",
+                              list(firms_parque_snpp, firms_parque_noaa20,
+                                   firms_parque_noaa21),
+                              list(etiquetas_snpp, etiquetas_noaa20,
+                                   etiquetas_noaa21))),
+  tar_target(fig_isocronas_catalina,
+             grafico_isocronas_evento(isocronas_catalina, parque, humedales,
+                                      "outputs/figs/isocronas_catalina_2026.png",
+                                      PIE_VIIRS_UNIDAS),
+             format = "file"),
+  tar_target(fig_avance_catalina,
+             grafico_avance_evento(isocronas_catalina,
+                                   "outputs/figs/avance_catalina_2026.png",
+                                   PIE_VIIRS_UNIDAS),
+             format = "file"),
+  tar_target(tabla_pases_catalina,
+             tabla_pases_csv(isocronas_catalina,
+                             "outputs/tables/pases_catalina_2026.csv"),
+             format = "file"),
+
   # --- Reportes Quarto ------------------------------------------------------
   # Se escriben explícitamente: son el elemento menos uniforme del proyecto
   # (su prosa es distinta por definición) y son pocos. tar_quarto solo detecta

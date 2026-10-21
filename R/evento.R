@@ -291,3 +291,281 @@ grafico_evento <- function(clave_evento, firms_parque, area_quemada_parque,
   ggplot2::ggsave(dest, p, width = 7, height = 6.4, dpi = 150)
   dest
 }
+
+# --- Avance del evento: isócronas por pase -----------------------------------
+#
+# Cómo avanzó el fuego: la envolvente acumulada de los footprints de fuego
+# activo, pase a pase del satélite. Une a las plataformas VIIRS porque aquí lo
+# que importa es la resolución temporal: cada satélite pasa dos veces al día,
+# pero los tres juntos observan el parque cada pocas horas. Es la única
+# pregunta del proyecto en la que conviene unir las series hermanas, y aun así
+# solo para construir superficies: una misma detección vista por dos
+# satélites casi simultáneos cuenta una vez en la envolvente y los conteos
+# nunca se suman (la trampa está documentada en el reporte de NOAA-20). MODIS
+# queda fuera: su footprint de ~1 km inflaría la envolvente y aportó diez
+# detecciones en tres pases.
+#
+# Un "pase" reúne las detecciones de una plataforma separadas por menos de
+# `brecha_min` minutos de la siguiente. Una órbita polar no vuelve en menos de
+# ~100 minutos, así que la brecha separa pases sin ambigüedad; agrupar por
+# hora de reloj, en cambio, partiría en dos una escena que cruza la hora en
+# punto, y agrupar por fecha fundiría el pase diurno con el nocturno.
+#
+# Las isócronas son ANILLOS: lo que cada pase agrega a la envolvente de los
+# anteriores. Una detección sobre terreno que ya ardió (rescoldos, reignición)
+# no agranda la envolvente y por eso no dibuja anillo, que es lo deseado: el
+# mapa muestra dónde llegó el fuego por primera vez y cuándo.
+isocronas_evento <- function(clave_evento, firms_parques, etiquetas,
+                             brecha_min = 30) {
+  e <- evento(clave_evento)
+  columnas <- c("plataforma", "acq_date", "acq_time", "scan", "track", "frp",
+                "daynight")
+  detecciones <- purrr::map2(firms_parques, etiquetas, function(fp, et) {
+    d <- detecciones_evento(clave_evento, fp)
+    d$plataforma <- et$corta
+    d[, columnas]
+  })
+  detecciones <- do.call(rbind, detecciones)
+  if (nrow(detecciones) == 0) {
+    stop("Sin detecciones para el evento '", clave_evento, "'", call. = FALSE)
+  }
+  # acq_time es HHMM en UTC; se conserva en UTC y las figuras convierten a la
+  # hora local al rotular.
+  detecciones$instante <- as.POSIXct(
+    paste(detecciones$acq_date, sprintf("%04d", detecciones$acq_time)),
+    format = "%Y-%m-%d %H%M", tz = "UTC"
+  )
+  detecciones <- detecciones[order(detecciones$plataforma,
+                                   detecciones$instante), ]
+  n <- nrow(detecciones)
+  brecha <- c(Inf, diff(as.numeric(detecciones$instante)) / 60)
+  cambia_plataforma <- c(TRUE, detecciones$plataforma[-1] !=
+                                 detecciones$plataforma[-n])
+  detecciones$pase_plataforma <- cumsum(brecha > brecha_min | cambia_plataforma)
+
+  pases <- sf::st_drop_geometry(detecciones) |>
+    dplyr::group_by(pase_plataforma, plataforma) |>
+    dplyr::summarise(
+      instante = min(instante),
+      detecciones = dplyr::n(),
+      frp = sum(frp, na.rm = TRUE),
+      nocturno = all(daynight == "N"),
+      .groups = "drop"
+    ) |>
+    dplyr::arrange(instante) |>
+    dplyr::mutate(pase = dplyr::row_number())
+  detecciones$pase <- pases$pase[match(detecciones$pase_plataforma,
+                                       pases$pase_plataforma)]
+
+  # Envolvente acumulada y anillo de cada pase, en CRTM05 (métrico).
+  footprints <- footprints_detecciones(detecciones)
+  geometrias <- sf::st_geometry(footprints)
+  acumulado <- NULL
+  anillos <- vector("list", nrow(pases))
+  ha_acumuladas <- numeric(nrow(pases))
+  for (k in pases$pase) {
+    nuevo <- sf::st_make_valid(sf::st_union(geometrias[footprints$pase == k]))
+    if (is.null(acumulado)) {
+      anillo <- nuevo
+      acumulado <- nuevo
+    } else {
+      anillo <- sf::st_difference(nuevo, acumulado)
+      acumulado <- sf::st_make_valid(sf::st_union(acumulado, nuevo))
+    }
+    anillos[[k]] <- anillo
+    ha_acumuladas[k] <- as.numeric(sf::st_area(acumulado)) / 1e4
+  }
+  anillos <- sf::st_sf(pase = pases$pase, geometry = do.call(c, anillos))
+  anillos <- anillos[!sf::st_is_empty(anillos), ]
+
+  primero <- min(pases$instante)
+  pases <- pases |>
+    dplyr::mutate(
+      instante_local = lubridate::with_tz(instante, TZ_LOCAL),
+      horas = as.numeric(difftime(instante, primero, units = "hours")),
+      ha_acumuladas = ha_acumuladas,
+      ha_nuevas = c(ha_acumuladas[1], diff(ha_acumuladas))
+    ) |>
+    dplyr::select(pase, plataforma, instante, instante_local, horas,
+                  nocturno, detecciones, frp, ha_nuevas, ha_acumuladas)
+  anillos <- dplyr::left_join(anillos, pases[, c("pase", "horas", "instante",
+                                                  "plataforma")], by = "pase")
+
+  list(evento = e, pases = pases, anillos = anillos,
+       plataformas = purrr::map_chr(etiquetas, "corta"))
+}
+
+# Zona horaria de las figuras y la prosa: la misma que el contenedor usa para
+# `date: today` (ver docker-compose.yml).
+TZ_LOCAL <- "America/Costa_Rica"
+
+# "S-NPP, NOAA-20 y NOAA-21": las plataformas unidas, en prosa y sin repetir
+# "VIIRS" tres veces.
+nombres_plataformas <- function(isocronas) {
+  nombres <- sub("^VIIRS ", "", isocronas$plataformas)
+  paste(paste(utils::head(nombres, -1), collapse = ", "), "y",
+        utils::tail(nombres, 1))
+}
+
+# Cortes del eje temporal en las medianoches locales entre el primer y el
+# último pase, expresados en horas desde el primer pase, con la fecha como
+# etiqueta. Las dos figuras del avance los comparten.
+cortes_dias <- function(pases) {
+  local <- pases$instante_local
+  dias <- seq(lubridate::ceiling_date(min(local), "day"),
+              lubridate::floor_date(max(local), "day"), by = "day")
+  list(
+    horas = as.numeric(difftime(dias, min(pases$instante), units = "hours")),
+    etiquetas = format(dias, "%d/%m"),
+    instantes = dias
+  )
+}
+
+# Mapa de isócronas: los anillos de cada pase coloreados por hora de
+# detección, sobre el límite del parque y el sector del evento. Mismo encuadre
+# que grafico_evento() para que las dos figuras se lean juntas.
+grafico_isocronas_evento <- function(isocronas, parque, humedales, dest,
+                                     fuente_datos) {
+  e <- isocronas$evento
+  pases <- isocronas$pases
+  sector <- humedales[grepl(e$sector, humedales$nom_hum, fixed = TRUE), ] |>
+    sf::st_transform(CRS_CRTM05)
+  parque <- sf::st_transform(parque, CRS_CRTM05)
+  caja <- sf::st_bbox(sector)
+  margen <- 0.12 * max(caja["xmax"] - caja["xmin"], caja["ymax"] - caja["ymin"])
+  cortes <- cortes_dias(pases)
+  n_dias <- dplyr::n_distinct(as.Date(pases$instante_local))
+
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_sf(data = parque, fill = "grey96", color = "grey30",
+                     linewidth = 0.5) +
+    ggplot2::geom_sf(data = sf::st_union(sector), fill = NA, color = "grey15",
+                     linewidth = 0.7, linetype = "22") +
+    ggplot2::geom_sf(data = isocronas$anillos, ggplot2::aes(fill = horas),
+                     color = "white", linewidth = 0.15) +
+    ggplot2::scale_fill_viridis_c(
+      option = "inferno", direction = -1, begin = 0.1, end = 0.9,
+      breaks = cortes$horas, labels = cortes$etiquetas,
+      limits = range(pases$horas), name = NULL
+    ) +
+    ggplot2::coord_sf(
+      xlim = c(caja["xmin"] - margen, caja["xmax"] + margen),
+      ylim = c(caja["ymin"] - margen, caja["ymax"] + margen),
+      datum = sf::st_crs(CRS_WGS84)
+    ) +
+    ggplot2::labs(
+      title = paste0("Avance del ", e$nombre),
+      subtitle = paste0(
+        "Envolvente acumulada de los footprints de fuego activo en ",
+        nrow(pases), " pases de ", nombres_plataformas(isocronas),
+        ",\ndel ", format(min(pases$instante_local), "%d/%m/%Y %H:%M"),
+        " al ", format(max(pases$instante_local), "%d/%m/%Y %H:%M"),
+        " (hora local, ", n_dias, " días).\nCada anillo es lo que un pase",
+        " agregó a la envolvente de los anteriores.\nEl trazo discontinuo",
+        " delimita el ", e$sector, " del Registro Nacional de Humedales"
+      ),
+      caption = fuente_datos
+    ) +
+    ggplot2::guides(fill = ggplot2::guide_colorbar(barwidth = 18,
+                                                   barheight = 0.6)) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_line(color = "grey92", linewidth = 0.3),
+      plot.title = ggplot2::element_text(face = "bold"),
+      plot.subtitle = ggplot2::element_text(size = 9, lineheight = 1.2),
+      legend.position = "bottom",
+      plot.caption = ggplot2::element_text(size = 7, color = "grey40")
+    )
+
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 7, height = 6.8, dpi = 150)
+  dest
+}
+
+# Curva de avance: hectáreas de la envolvente acumulada en cada pase, con las
+# noches sombreadas y la cifra oficial como referencia. Es el complemento
+# numérico del mapa: dice cuánto y a qué ritmo, no dónde.
+grafico_avance_evento <- function(isocronas, dest, fuente_datos) {
+  e <- isocronas$evento
+  pases <- isocronas$pases
+  local <- pases$instante_local
+  # Noches locales (18:00 a 06:00) que caen dentro de la ventana observada.
+  anocheceres <- seq(lubridate::floor_date(min(local), "day") + lubridate::hours(18),
+                     max(local), by = "day")
+  noches <- data.frame(inicio = anocheceres,
+                       fin = anocheceres + lubridate::hours(12))
+  noches <- noches[noches$fin > min(local), ]
+  noches$inicio <- pmax(noches$inicio, min(local))
+  noches$fin <- pmin(noches$fin, max(local))
+  pases$plataforma <- factor(pases$plataforma, levels = isocronas$plataformas)
+
+  p <- ggplot2::ggplot(pases, ggplot2::aes(x = instante_local,
+                                           y = ha_acumuladas)) +
+    ggplot2::geom_rect(
+      data = noches, inherit.aes = FALSE,
+      ggplot2::aes(xmin = inicio, xmax = fin, ymin = -Inf, ymax = Inf),
+      fill = "grey92"
+    ) +
+    ggplot2::geom_hline(yintercept = e$ha_oficial, linetype = "22",
+                        color = "grey40") +
+    ggplot2::annotate(
+      "text", x = min(local), y = e$ha_oficial, vjust = -0.5, hjust = 0,
+      size = 3, color = "grey40",
+      label = paste0("Cifra oficial: ", format(e$ha_oficial, big.mark = " "),
+                     " ha (", e$fuente_cifra, ")")
+    ) +
+    ggplot2::geom_step(direction = "hv", color = "grey35", linewidth = 0.5) +
+    ggplot2::geom_point(ggplot2::aes(color = plataforma), size = 2.6) +
+    ggplot2::scale_color_brewer(palette = "Dark2", name = NULL) +
+    ggplot2::scale_x_datetime(date_breaks = "1 day", date_labels = "%d/%m",
+                              date_minor_breaks = "12 hours") +
+    ggplot2::scale_y_continuous(
+      labels = function(x) format(x, big.mark = " ", trim = TRUE),
+      limits = c(0, NA), expand = ggplot2::expansion(mult = c(0, 0.12))
+    ) +
+    ggplot2::labs(
+      title = paste0("Superficie alcanzada por el ", e$nombre, ", pase a pase"),
+      subtitle = paste0(
+        "Hectáreas de la envolvente acumulada de los footprints de fuego",
+        " activo (", nombres_plataformas(isocronas),
+        ")\nLas bandas grises son las noches locales (18:00 a 06:00)"
+      ),
+      x = NULL, y = "Hectáreas (envolvente acumulada)", caption = fuente_datos
+    ) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major = ggplot2::element_line(color = "grey85"),
+      plot.title = ggplot2::element_text(face = "bold"),
+      plot.subtitle = ggplot2::element_text(size = 9, lineheight = 1.2),
+      legend.position = "bottom",
+      plot.caption = ggplot2::element_text(size = 7, color = "grey40")
+    )
+
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  ggplot2::ggsave(dest, p, width = 8, height = 4.8, dpi = 150)
+  dest
+}
+
+# Tabla de pases en CSV, con hora local y números crudos (punto decimal, como
+# el resto de las tablas CSV del proyecto), para quien quiera rehacer la curva.
+tabla_pases_csv <- function(isocronas, dest) {
+  tabla <- isocronas$pases |>
+    dplyr::transmute(
+      pase, plataforma,
+      instante_local = format(instante_local, "%Y-%m-%d %H:%M"),
+      horas = round(horas, 1),
+      nocturno,
+      detecciones,
+      frp_mw = round(frp),
+      ha_nuevas = round(ha_nuevas),
+      ha_acumuladas = round(ha_acumuladas)
+    )
+  dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+  readr::write_csv(tabla, dest)
+  dest
+}
+
+# Pie de las figuras que unen a las tres plataformas VIIRS.
+PIE_VIIRS_UNIDAS <- paste0("Datos: NASA FIRMS (VIIRS_SNPP, VIIRS_NOAA20 y ",
+                           "VIIRS_NOAA21, estándar y NRT) y SINAC")
