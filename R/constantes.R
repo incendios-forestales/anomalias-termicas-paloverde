@@ -92,3 +92,25 @@ earthdata_token <- function() {
   }
   token
 }
+
+# --- Copernicus Sentinel-2 (cicatriz de los eventos documentados) ---
+# Escenas L2A (reflectancia de superficie) buscadas en el catálogo STAC de
+# Earth Search y leídas de los COG públicos en AWS: ambos sin credenciales.
+# Se usan solo para los eventos de R/evento.R, que declaran su par de fechas
+# previa/posterior; no hay serie de Sentinel-2 en el proyecto.
+STAC_EARTH_SEARCH <- "https://earth-search.aws.element84.com/v1/search"
+S2_COLECCION      <- "sentinel-2-l2a"
+
+# Bandas que baja el pipeline, por su nombre de asset en Earth Search y por
+# su nombre de banda de Sentinel-2. Las tres van a 20 m: B8A (NIR estrecho) y
+# B12 (SWIR) componen el NBR, y SCL es la clasificación de escena con la que
+# se enmascaran nubes, sombras y datos faltantes.
+S2_BANDAS <- c(nir08 = "B8A", swir22 = "B12", scl = "SCL")
+S2_RES_M  <- 20
+
+# Margen alrededor del parque para la ventana de recorte de las escenas. La
+# cicatriz de un evento puede salirse del parque (Catalina se extiende 658 ha
+# fuera del Sector) y el contexto ayuda a leerla, pero no hace falta el bbox
+# de descarga de FIRMS (5 km): a 20 m cada kilómetro de margen cuesta poco,
+# pero la ventana debe caber en una sola tesela MGRS.
+S2_MARGEN_KM <- 2

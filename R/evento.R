@@ -26,9 +26,17 @@
 #   causa        causa reportada, en una frase
 #   combustible  vegetación que ardió según la fuente externa
 #   fuente_*     medio, enlace y fecha de publicación
+#   s2_previa/   fechas de la escena Sentinel-2 anterior y posterior al evento
+#   s2_post      con las que se mide la cicatriz (dNBR). Se eligen a mano y se
+#                declaran aquí porque el criterio no se automatiza bien: la
+#                nubosidad del catálogo es la de la tesela completa y engaña
+#                (para Catalina, 9,5 % y 13,4 % en el catálogo contra 0 % sobre
+#                el parque según la banda SCL). Conviene la escena previa más
+#                cercana a la ignición y la posterior más cercana al fin, ambas
+#                sin nubes sobre el sector.
 EVENTOS <- tibble::tribble(
-  ~clave,           ~nombre,                          ~inicio,                 ~fin,                    ~ignicion,               ~sector,           ~ha_oficial, ~causa,                 ~combustible,
-  "catalina_2026",  "episodio del humedal Catalina",  as.Date("2026-05-29"),   as.Date("2026-06-02"),   as.Date("2026-05-28"),   "Sector Catalina", 4000,        "la caída de un rayo",  "*Typha*"
+  ~clave,           ~nombre,                          ~inicio,                 ~fin,                    ~ignicion,               ~sector,           ~ha_oficial, ~causa,                 ~combustible, ~s2_previa,              ~s2_post,
+  "catalina_2026",  "episodio del humedal Catalina",  as.Date("2026-05-29"),   as.Date("2026-06-02"),   as.Date("2026-05-28"),   "Sector Catalina", 4000,        "la caída de un rayo",  "*Typha*",    as.Date("2026-05-14"),   as.Date("2026-06-11")
 ) |>
   dplyr::mutate(
     fuente_medio  = "Delfino.cr",
