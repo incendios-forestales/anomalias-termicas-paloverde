@@ -313,6 +313,9 @@ detecciones son nocturnas: el fuego no se apagaba de noche.
 
 ![](`r file.path("..", tar_read(fig_evento_snpp, store = almacen))`)
 
+La [portada](../) une los pases de las tres plataformas VIIRS en un mapa de
+isócronas del avance del episodio, con la envolvente acumulada pase a pase.
+
 **Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
 polígono dominante el *`r e$sector`* del Registro Nacional de Humedales, el
 mismo sector estuarino de 4 453 ha que la sección anterior identifica como el

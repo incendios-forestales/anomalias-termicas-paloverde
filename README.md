@@ -146,15 +146,26 @@ Los eventos así se declaran como filas de la tabla `EVENTOS` en
 como hermanos— y de ahí salen las cifras, el mapa y la prosa de las cuatro
 plataformas. Dos resultados:
 
-- **El píxel manda.** Sobre el mismo fuego y los mismos días, MODIS registró 9
-  detecciones y las plataformas VIIRS entre 94 y 163. Un incendio de miles de
-  hectáreas se reduce a un puñado de píxeles en la serie más larga.
-- **El área quemada se queda muy corta.** MCD64A1/VNP64A1 marcan entre 299 y
-  706 ha, de 6 a 13 veces menos que la cifra oficial. El algoritmo declara
+- **El píxel manda.** Sobre el mismo fuego y los mismos días, MODIS registró
+  10 detecciones y las plataformas VIIRS entre 95 y 170. Un incendio de miles
+  de hectáreas se reduce a un puñado de píxeles en la serie más larga.
+- **El área quemada se queda muy corta.** MCD64A1/VNP64A1 marcan entre 406 y
+  706 ha, de 6 a 10 veces menos que la cifra oficial. El algoritmo declara
   quemado un píxel de 500 m ante un cambio *persistente* de reflectancia, y una
   quema de *Typha* sobre lámina de agua no lo produce. Las hectáreas de estos
   reportes sirven para comparar años entre sí, **no** para responder cuánta
   superficie se quemó.
+
+La portada agrega un tercer resultado: las **isócronas por pase**
+(`isocronas_evento()` en `R/evento.R`). Las tres plataformas VIIRS unidas
+observan el parque cada pocas horas, y la envolvente acumulada de sus
+footprints pase a pase muestra dónde llegó el fuego por primera vez y cuándo.
+Es la única figura que une plataformas, y solo para dibujar superficies: los
+conteos no se suman porque una detección vista por dos satélites casi
+simultáneos es la misma. La envolvente final (~2 900 ha) queda entre el área
+quemada y la cifra oficial. Salidas: `outputs/figs/isocronas_catalina_2026.png`,
+`outputs/figs/avance_catalina_2026.png` y
+`outputs/tables/pases_catalina_2026.csv`.
 
 El área quemada se atribuye al evento por mes calendario y no por día: la fecha
 del píxel es una estimación algorítmica con incertidumbre de varios días —aquí

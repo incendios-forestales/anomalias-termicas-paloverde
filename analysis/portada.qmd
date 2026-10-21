@@ -239,6 +239,67 @@ hectáreas de estos reportes **sirven para comparar años entre sí, no para
 responder cuántas hectáreas se quemaron**. Cada reporte desarrolla el episodio
 con sus propias cifras.
 
+### Cómo avanzó: isócronas por pase
+
+```{r}
+#| label: isocronas
+iso <- tar_read(isocronas_catalina, store = almacen)
+pases <- iso$pases
+por_dia <- pases |>
+  dplyr::mutate(dia = as.Date(instante_local)) |>
+  dplyr::group_by(dia) |>
+  dplyr::summarise(ha = sum(ha_nuevas), pases = dplyr::n(), .groups = "drop")
+dia_max <- por_dia[which.max(por_dia$ha), ]
+ha_final <- round(max(pases$ha_acumuladas))
+nocturnos <- sum(pases$nocturno)
+ha_noche <- round(sum(pases$ha_nuevas[pases$nocturno]))
+ba_max <- max(ev_ba$hectareas)
+```
+
+Separadas, cada plataforma VIIRS pasa dos veces al día; juntas, las tres
+observan el parque cada pocas horas. Entre el
+`r fecha_es(min(pases$instante_local), con_anio = FALSE)` a las
+`r format(min(pases$instante_local), "%H:%M")` y el
+`r fecha_es(max(pases$instante_local), con_anio = FALSE)` a la
+`r format(max(pases$instante_local), "%H:%M")` (hora local) suman
+**`r nrow(pases)` pases** en `r round(max(pases$horas))` horas. Unir los
+footprints de fuego activo de cada pase a la envolvente de los anteriores
+produce un mapa de isócronas: **dónde llegó el fuego por primera vez y
+cuándo**. Es la única figura del proyecto que une plataformas, y lo hace solo
+para dibujar superficies: los conteos siguen sin sumarse, porque una detección
+vista por dos satélites casi simultáneos es la misma.
+
+![](`r file.path("..", tar_read(fig_isocronas_catalina, store = almacen))`)
+
+**No fue un frente único.** El primer día el fuego ocupó el centro-norte del
+sector; el 30 de mayo avanzó hacia el extremo noroeste; el 31 apareció en dos
+zonas nuevas y separadas entre sí, el este y el sur; y el 1 de junio volvió
+sobre el centro. Un typhal seco con lámina de agua debajo arde donde el
+combustible lo permite, no como un frente que se desplaza.
+
+**El `r fecha_es(dia_max$dia, con_anio = FALSE)` fue el día decisivo.** De las
+`r format(ha_final, big.mark = " ")` hectáreas de la envolvente final,
+`r format(round(dia_max$ha), big.mark = " ")` (el
+`r num_es(100 * dia_max$ha / ha_final, 0)` %) se agregaron ese día en
+`r dia_max$pases` pases. `r nocturnos` de los `r nrow(pases)` pases son
+nocturnos y aportaron `r format(ha_noche, big.mark = " ")` hectáreas: el fuego
+avanzó también de noche.
+
+![](`r file.path("..", tar_read(fig_avance_catalina, store = almacen))`)
+
+**Una tercera cifra entre las otras dos.** La envolvente final,
+**`r format(ha_final, big.mark = " ")` hectáreas**, equivale al
+`r num_es(100 * ha_final / e$ha_oficial, 0)` % de la cifra oficial y a
+`r num_es(ha_final / ba_max)` veces el máximo de los productos de área
+quemada. No es una medición de superficie quemada: un footprint de VIIRS mide
+al menos 375 m de lado y la envolvente incluye terreno alrededor de cada píxel
+detectado, así que sobreestima en los bordes. Pero tampoco exige que la
+cicatriz persista semanas, que es justo lo que el área quemada no ve en un
+typhal sobre agua. Que la envolvente quede más cerca de la cifra oficial que
+del producto de área quemada es un argumento más de que la brecha está en el
+producto y no en el fuego. La tabla de pases está en
+[`outputs/tables/pases_catalina_2026.csv`](outputs/tables/pases_catalina_2026.csv).
+
 ## Los reportes
 
 ```{r}

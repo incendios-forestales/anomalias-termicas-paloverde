@@ -289,6 +289,9 @@ máximo de `r num_es(ev$frp_maximo)` MW en un solo píxel.
 
 ![](`r file.path("..", tar_read(fig_evento_modis, store = almacen))`)
 
+La [portada](../) une los pases de las tres plataformas VIIRS en un mapa de
+isócronas del avance del episodio, con la envolvente acumulada pase a pase.
+
 ```{r}
 #| label: evento-plataformas
 ev_plat <- resumen_evento_plataformas("catalina_2026", PLATAFORMAS$clave,

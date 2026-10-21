@@ -264,6 +264,9 @@ con `r max(ev$por_dia$detecciones)` detecciones.
 
 ![](`r file.path("..", tar_read(fig_evento_noaa20, store = almacen))`)
 
+La [portada](../) une los pases de las tres plataformas VIIRS en un mapa de
+isócronas del avance del episodio, con la envolvente acumulada pase a pase.
+
 **Dónde ardió.** El **`r ev$pct_sector` %** de las detecciones tiene como
 polígono dominante el *`r e$sector`* del Registro Nacional de Humedales, el
 mismo sector estuarino de 4 453 ha de la sección anterior, y el
