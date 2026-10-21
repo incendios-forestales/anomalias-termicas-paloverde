@@ -285,20 +285,76 @@ combustible lo permite, no como un frente que se desplaza.
 nocturnos y aportaron `r format(ha_noche, big.mark = " ")` hectáreas: el fuego
 avanzó también de noche.
 
+### La cicatriz, medida con Sentinel-2
+
+```{r}
+#| label: cicatriz
+cic <- tar_read(cicatriz_catalina, store = almacen)
+cf <- cic$cifras
+# Cruce entre lo que el fuego activo alcanzó (envolvente de los pases) y lo
+# que dejó marcado (perímetro de la cicatriz), en hectáreas.
+envolvente <- sf::st_union(iso$anillos$geometry)
+perimetro <- sf::st_geometry(cic$perimetro)
+ha_sf <- function(g) as.numeric(sum(sf::st_area(g))) / 1e4
+cruce <- list(
+  comun = ha_sf(sf::st_intersection(envolvente, perimetro)),
+  solo_fuego = ha_sf(sf::st_difference(envolvente, perimetro)),
+  solo_cicatriz = ha_sf(sf::st_difference(perimetro, envolvente))
+)
+ha_txt <- function(x) format(round(x), big.mark = " ", trim = TRUE)
+```
+
+Las tres mediciones anteriores salen de sensores de 375 m a 1 km. Sentinel-2
+ve la cicatriz a 20 m: el dNBR entre una escena del
+`r fecha_es(e$s2_previa, con_anio = FALSE)` y otra del
+`r fecha_es(e$s2_post, con_anio = FALSE)`, ambas sin nubes sobre el parque,
+mide cuánta vegetación desapareció en cada píxel. El **perímetro** de la
+cicatriz no es un umbral suelto sino la mancha conexa anclada a la severidad
+moderada, con los islotes que el fuego rodeó incluidos, que es lo que un
+perímetro de incendio significa.
+
+![](`r file.path("..", tar_read(fig_cicatriz_catalina, store = almacen))`)
+
+**`r ha_txt(cf$perimetro_ha)` hectáreas de perímetro**, de las cuales
+`r ha_txt(cf$quemado_ha)` muestran cambio y `r ha_txt(cf$islotes_ha)` son
+islotes sin quemar, casi todos bosque. Dentro, `r ha_txt(cf$moderado_ha)`
+hectáreas superan la severidad moderada y `r ha_txt(cf$alto_ha)` la alta.
+El perímetro cubre el `r num_es(100 * cf$sector_ha / cf$sector_total_ha, 0)` %
+del `r e$sector` y se extiende `r ha_txt(cf$fuera_sector_ha)` hectáreas fuera
+de él. La laguna de Palo Verde, el humedal vecino, tiene
+`r ha_txt(cf$control_cambio_ha)` hectáreas con cambio detectable pero solo
+`r ha_txt(cf$control_moderado_ha)` con severidad moderada: reverdeció con las
+primeras lluvias, no se quemó, y el perímetro apenas la toca
+(`r ha_txt(cf$control_ha)` ha). Esa es la razón del anclaje: un umbral solo
+confunde reverdecimiento con quema.
+
+**Fuego activo y cicatriz no coinciden del todo.** De las
+`r ha_txt(ha_final)` hectáreas que alcanzó la envolvente de fuego activo,
+`r ha_txt(cruce$comun)` caen dentro del perímetro y `r ha_txt(cruce$solo_fuego)`
+fuera, sobre todo la franja del sur del 31 de mayo: hubo llama que el satélite
+vio pero no dejó cicatriz persistente a 20 m, lo esperable en un typhal sobre
+agua. A la inversa, `r ha_txt(cruce$solo_cicatriz)` hectáreas del perímetro no
+tuvieron detección en ningún pase; `r ha_txt(cf$islotes_ha)` de ellas son los
+islotes sin quemar y el resto ardió entre pases.
+
 ![](`r file.path("..", tar_read(fig_avance_catalina, store = almacen))`)
 
-**Una tercera cifra entre las otras dos.** La envolvente final,
-**`r format(ha_final, big.mark = " ")` hectáreas**, equivale al
-`r num_es(100 * ha_final / e$ha_oficial, 0)` % de la cifra oficial y a
-`r num_es(ha_final / ba_max)` veces el máximo de los productos de área
-quemada. No es una medición de superficie quemada: un footprint de VIIRS mide
-al menos 375 m de lado y la envolvente incluye terreno alrededor de cada píxel
-detectado, así que sobreestima en los bordes. Pero tampoco exige que la
-cicatriz persista semanas, que es justo lo que el área quemada no ve en un
-typhal sobre agua. Que la envolvente quede más cerca de la cifra oficial que
-del producto de área quemada es un argumento más de que la brecha está en el
-producto y no en el fuego. La tabla de pases está en
-[`outputs/tables/pases_catalina_2026.csv`](outputs/tables/pases_catalina_2026.csv).
+**Cuatro cifras que no se contradicen.** El área quemada de 500 m marca
+`r ha_txt(ba_max)` hectáreas; la envolvente de fuego activo,
+`r ha_txt(ha_final)`; la cicatriz Sentinel-2, `r ha_txt(cf$perimetro_ha)`; la
+cifra oficial, `r format(e$ha_oficial, big.mark = " ")`. Miden cosas
+distintas. Las `r ha_txt(cf$alto_ha)` hectáreas de severidad alta coinciden
+casi exactamente con las `r ha_txt(ba_max)` del producto de área quemada: el
+producto de 500 m no falla al azar, **captura el núcleo severo y pierde el
+resto**. El perímetro de la cicatriz queda en el mismo orden que la cifra
+oficial, y la diferencia que resta cabe en lo que una cuadrilla cuenta como
+afectado y un satélite no ve cambiar. La brecha, entonces, está en el producto
+y no en el fuego, y las hectáreas de área quemada de estos reportes siguen
+sirviendo para comparar años entre sí, no para responder cuánto se quemó. El
+perímetro está en
+[`outputs/maps/cicatriz_catalina_2026.gpkg`](outputs/maps/cicatriz_catalina_2026.gpkg)
+y sus cifras en
+[`outputs/tables/cicatriz_catalina_2026.csv`](outputs/tables/cicatriz_catalina_2026.csv).
 
 ## Los reportes
 

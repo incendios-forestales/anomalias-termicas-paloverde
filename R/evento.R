@@ -433,7 +433,7 @@ cortes_dias <- function(pases) {
 # detección, sobre el límite del parque y el sector del evento. Mismo encuadre
 # que grafico_evento() para que las dos figuras se lean juntas.
 grafico_isocronas_evento <- function(isocronas, parque, humedales, dest,
-                                     fuente_datos) {
+                                     fuente_datos, cicatriz = NULL) {
   e <- isocronas$evento
   pases <- isocronas$pases
   sector <- humedales[grepl(e$sector, humedales$nom_hum, fixed = TRUE), ] |>
@@ -451,6 +451,14 @@ grafico_isocronas_evento <- function(isocronas, parque, humedales, dest,
                      linewidth = 0.7, linetype = "22") +
     ggplot2::geom_sf(data = isocronas$anillos, ggplot2::aes(fill = horas),
                      color = "white", linewidth = 0.15) +
+    # El perímetro de la cicatriz (Sentinel-2) encima de los anillos: lo que
+    # el fuego activo alcanzó contra lo que dejó marcado.
+    (if (is.null(cicatriz)) NULL else list(
+      ggplot2::geom_sf(data = cicatriz$perimetro,
+                       ggplot2::aes(color = "Perímetro de la cicatriz (Sentinel-2, dNBR)"),
+                       fill = NA, linewidth = 0.8),
+      ggplot2::scale_color_manual(values = COLOR_CICATRIZ, name = NULL)
+    )) +
     ggplot2::scale_fill_viridis_c(
       option = "inferno", direction = -1, begin = 0.1, end = 0.9,
       breaks = cortes$horas, labels = cortes$etiquetas,
@@ -475,27 +483,44 @@ grafico_isocronas_evento <- function(isocronas, parque, humedales, dest,
       caption = fuente_datos
     ) +
     ggplot2::guides(fill = ggplot2::guide_colorbar(barwidth = 18,
-                                                   barheight = 0.6)) +
+                                                   barheight = 0.6, order = 1),
+                    color = ggplot2::guide_legend(order = 2)) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
       panel.grid = ggplot2::element_line(color = "grey92", linewidth = 0.3),
       plot.title = ggplot2::element_text(face = "bold"),
       plot.subtitle = ggplot2::element_text(size = 9, lineheight = 1.2),
       legend.position = "bottom",
+      legend.box = "vertical",
+      legend.spacing.y = grid::unit(0, "pt"),
       plot.caption = ggplot2::element_text(size = 7, color = "grey40")
     )
 
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
-  ggplot2::ggsave(dest, p, width = 7, height = 6.8, dpi = 150)
+  ggplot2::ggsave(dest, p, width = 7, height = 7, dpi = 150)
   dest
 }
 
 # Curva de avance: hectáreas de la envolvente acumulada en cada pase, con las
 # noches sombreadas y la cifra oficial como referencia. Es el complemento
 # numérico del mapa: dice cuánto y a qué ritmo, no dónde.
-grafico_avance_evento <- function(isocronas, dest, fuente_datos) {
+#
+# `referencias` es un data frame (etiqueta, hectareas) con las cifras contra
+# las que leer la curva; por omisión, solo la oficial. Con el área quemada y la
+# cicatriz Sentinel-2 la figura reúne las cuatro mediciones del evento.
+grafico_avance_evento <- function(isocronas, dest, fuente_datos,
+                                  referencias = NULL) {
   e <- isocronas$evento
   pases <- isocronas$pases
+  if (is.null(referencias)) {
+    referencias <- data.frame(
+      etiqueta = paste0("Cifra oficial (", e$fuente_cifra, ")"),
+      hectareas = e$ha_oficial
+    )
+  }
+  referencias$texto <- paste0(referencias$etiqueta, ": ",
+                              format(round(referencias$hectareas),
+                                     big.mark = " ", trim = TRUE), " ha")
   local <- pases$instante_local
   # Noches locales (18:00 a 06:00) que caen dentro de la ventana observada.
   anocheceres <- seq(lubridate::floor_date(min(local), "day") + lubridate::hours(18),
@@ -514,14 +539,14 @@ grafico_avance_evento <- function(isocronas, dest, fuente_datos) {
       ggplot2::aes(xmin = inicio, xmax = fin, ymin = -Inf, ymax = Inf),
       fill = "grey92"
     ) +
-    ggplot2::geom_hline(yintercept = e$ha_oficial, linetype = "22",
-                        color = "grey40") +
-    ggplot2::annotate(
-      "text", x = min(local), y = e$ha_oficial, vjust = -0.5, hjust = 0,
-      size = 3, color = "grey40",
-      label = paste0("Cifra oficial: ", format(e$ha_oficial, big.mark = " "),
-                     " ha (", e$fuente_cifra, ")")
-    ) +
+    ggplot2::geom_hline(data = referencias,
+                        ggplot2::aes(yintercept = hectareas),
+                        linetype = "22", color = "grey40") +
+    # Etiquetas al extremo derecho: la curva termina abajo de las referencias
+    # altas y arriba de la baja, así que ahí nunca tapan puntos.
+    ggplot2::geom_text(data = referencias, inherit.aes = FALSE,
+                       ggplot2::aes(x = max(local), y = hectareas, label = texto),
+                       vjust = -0.5, hjust = 1, size = 3, color = "grey40") +
     ggplot2::geom_step(direction = "hv", color = "grey35", linewidth = 0.5) +
     ggplot2::geom_point(ggplot2::aes(color = plataforma), size = 2.6) +
     ggplot2::scale_color_brewer(palette = "Dark2", name = NULL) +
@@ -536,7 +561,8 @@ grafico_avance_evento <- function(isocronas, dest, fuente_datos) {
       subtitle = paste0(
         "Hectáreas de la envolvente acumulada de los footprints de fuego",
         " activo (", nombres_plataformas(isocronas),
-        ")\nLas bandas grises son las noches locales (18:00 a 06:00)"
+        ")\nLas bandas grises son las noches locales (18:00 a 06:00);",
+        " las líneas punteadas, las otras mediciones del episodio"
       ),
       x = NULL, y = "Hectáreas (envolvente acumulada)", caption = fuente_datos
     ) +
@@ -573,6 +599,26 @@ tabla_pases_csv <- function(isocronas, dest) {
   readr::write_csv(tabla, dest)
   dest
 }
+
+# Las cifras de referencia del evento para la curva de avance: oficial, área
+# quemada del producto de 500 m y cicatriz Sentinel-2. `area_quemada_parque`
+# es el de la plataforma cuyo producto se cita (VNP64A1 vía S-NPP).
+referencias_evento <- function(clave_evento, area_quemada_parque, etiqueta_ba,
+                               cicatriz) {
+  e <- evento(clave_evento)
+  ha_ba <- sum(sf::st_drop_geometry(
+    quemas_evento(clave_evento, area_quemada_parque))$area_ha)
+  data.frame(
+    etiqueta = c(paste0("Cifra oficial (", e$fuente_cifra, ")"),
+                 "Cicatriz Sentinel-2 (dNBR)",
+                 paste0("Área quemada (", etiqueta_ba, ")")),
+    hectareas = c(e$ha_oficial, cicatriz$cifras$perimetro_ha, ha_ba)
+  )
+}
+
+# Color del perímetro de la cicatriz en los mapas del evento: azul, lejos de
+# la escala inferno de las isócronas y del naranja del área quemada.
+COLOR_CICATRIZ <- "#0072B2"
 
 # Pie de las figuras que unen a las tres plataformas VIIRS.
 PIE_VIIRS_UNIDAS <- paste0("Datos: NASA FIRMS (VIIRS_SNPP, VIIRS_NOAA20 y ",
