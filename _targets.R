@@ -316,6 +316,23 @@ list(
                                 "data/raw/sentinel2"),
              pattern = map(escenas_s2_catalina), format = "file"),
 
+  # Cicatriz por dNBR y perímetro anclado a la severidad moderada. Ver
+  # R/cicatriz.R. El dNBR va a data/processed (regenerable, no versionado);
+  # el perímetro, a outputs/maps como GeoPackage.
+  tar_target(dnbr_catalina,
+             dnbr_evento(escenas_s2_catalina, bandas_s2_catalina,
+                         "data/processed/dnbr_catalina_2026.tif"),
+             format = "file"),
+  tar_target(cicatriz_catalina,
+             cicatriz_evento("catalina_2026", dnbr_catalina, parque, humedales,
+                             "outputs/maps/cicatriz_catalina_2026.gpkg")),
+  tar_target(gpkg_cicatriz_catalina, cicatriz_catalina$archivo,
+             format = "file"),
+  tar_target(tabla_cicatriz_catalina,
+             tabla_cicatriz_csv(cicatriz_catalina,
+                                "outputs/tables/cicatriz_catalina_2026.csv"),
+             format = "file"),
+
   # --- Avance del episodio Catalina: isócronas por pase -----------------
   # Única figura que une plataformas: la envolvente acumulada de los
   # footprints VIIRS pase a pase (S-NPP, NOAA-20 y NOAA-21 juntos observan el
