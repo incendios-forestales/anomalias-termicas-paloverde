@@ -177,8 +177,24 @@ busca en el catálogo STAC de Earth Search y recorta las bandas B8A, B12 y SCL
 `data/raw/sentinel2/`). Las fechas se eligen a mano porque la nubosidad del
 catálogo es la de la tesela entera y engaña: para Catalina (14 de mayo y 11 de
 junio de 2026) el catálogo dice 9,5 % y 13,4 %, pero sobre el parque la banda
-SCL no marca nubes. El cálculo del dNBR y del perímetro de la cicatriz a
-partir de estas bandas es el siguiente paso.
+SCL no marca nubes.
+
+De esas bandas sale la **cicatriz** ([`R/cicatriz.R`](R/cicatriz.R)): el
+dNBR = NBR(previa) − NBR(post), enmascarado donde cualquiera de las fechas
+tiene nube o sombra, y un **perímetro** que no es un umbral suelto sino una
+mancha conexa: cambio (dNBR > 0,10) abierto con ventana 3×3, conservado solo
+a ≤ 500 m de un píxel con severidad moderada (> 0,27), cerrado con ventana de
+11 px, componente mayor y huecos rellenados. El anclaje a la severidad
+moderada es lo que impide que el cierre morfológico salte a marismas vecinas
+que solo reverdecieron entre las dos fechas (la laguna de Palo Verde tiene
+~650 ha con dNBR > 0,10 y apenas 10 con > 0,27: reverdeció, no se quemó).
+Para Catalina el perímetro mide **3 293 ha**, de las cuales 886 son islotes
+sin quemar (bosque que el fuego rodeó) y 702 superan 0,44 (severidad alta):
+casi exactamente las 706 ha de VNP64A1. Las tres cifras no se contradicen,
+miden cosas distintas: el producto de 500 m captura el núcleo severo y pierde
+el resto. Salidas: `outputs/maps/cicatriz_catalina_2026.gpkg` (perímetro en
+CRTM05) y `outputs/tables/cicatriz_catalina_2026.csv`; el dNBR queda en
+`data/processed/`, regenerable.
 
 El área quemada se atribuye al evento por mes calendario y no por día: la fecha
 del píxel es una estimación algorítmica con incertidumbre de varios días —aquí
