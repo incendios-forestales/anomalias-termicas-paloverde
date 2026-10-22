@@ -63,7 +63,8 @@ El flujo de trabajo está implementado con [{targets}](https://books.ropensci.or
    nulo de puntos aleatorios en el parque, para distinguir un efecto de borde
    real de una ilusión geométrica (ver más abajo).
 5. **Salidas**: animación GIF/MP4 (gganimate) con fondo de cobertura, video
-   estilo cartel con relieve y contadores acumulados (ver más abajo), mapa
+   estilo cartel con relieve y contadores acumulados (ver más abajo), video
+   del episodio Catalina con isócronas animadas y cicatriz (ver más abajo), mapa
    leaflet con deslizador temporal, control de pantalla completa y capas
    conmutables (detecciones, límite del parque, cobertura y capas del
    SINAC), serie temporal
@@ -165,7 +166,8 @@ conteos no se suman porque una detección vista por dos satélites casi
 simultáneos es la misma. La envolvente final (~2 900 ha) queda entre el área
 quemada y la cifra oficial. Salidas: `outputs/figs/isocronas_catalina_2026.png`,
 `outputs/figs/avance_catalina_2026.png` y
-`outputs/tables/pases_catalina_2026.csv`.
+`outputs/tables/pases_catalina_2026.csv`; la versión animada es el video del
+episodio (ver más abajo).
 
 Para medir la cicatriz con independencia de los productos de 500 m, cada
 evento declara además su par de escenas **Sentinel-2 L2A** (previa y
@@ -232,6 +234,34 @@ Implementación en [`R/video.R`](R/video.R). El cartel estático
 series mensuales con el mismo estilo visual, en dos paneles apilados —
 nunca un doble eje: son magnitudes no comparables — con el mes máximo de
 cada serie rotulado.
+
+### Video del episodio
+
+`outputs/figs/video_catalina_2026.mp4` (target `video_catalina`) es la versión
+animada de la sección del episodio Catalina de la portada, con el mismo lienzo,
+encabezado y tipografía que el video de 25 años para que se lean como una
+serie ([`R/video_episodio.R`](R/video_episodio.R)):
+
+- **El reloj manda**: un cuadro cada 30 minutos de tiempo real, no un cuadro
+  por pase. Los pases están repartidos de forma desigual (tres en 50 minutos
+  al mediodía, ninguno en diez horas de noche) y el ritmo del video es el del
+  reloj: las noches se sienten largas y los mediodías, rápidos.
+- **Anillos por edad**: cada pase agrega su anillo a la envolvente y las
+  detecciones se encienden con resplandor; los anillos se colorean por las
+  horas transcurridas desde su pase, de amarillo casi blanco a brasa apagada.
+  La figura estática usa inferno por hora de llegada; aquí el tiempo lo dan el
+  reloj y la línea de tiempo del encabezado (con las medianoches y una marca
+  por pase, azul si fue nocturno).
+- **La noche oscurece el fondo**, con crepúsculos de una hora, pero no las
+  capas de fuego.
+- **Cierre con las cuatro cifras**: con el reloj detenido en el último pase
+  aparecen, en fundidos sucesivos, el área quemada de 500 m (púrpura, el color
+  de esa magnitud en toda la serie), el perímetro de la cicatriz Sentinel-2
+  (cian) y la cifra oficial, y el cuadro final se congela unos segundos.
+
+El encuadre, el fondo de relieve y la retícula salen de las mismas funciones
+que el video de 25 años (`layout_video()`, `fondo_relieve_video()` y
+`reticula_video()`), parametrizadas por encuadre.
 
 ## Requisitos
 

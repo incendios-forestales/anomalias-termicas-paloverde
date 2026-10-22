@@ -356,6 +356,18 @@ perímetro está en
 y sus cifras en
 [`outputs/tables/cicatriz_catalina_2026.csv`](outputs/tables/cicatriz_catalina_2026.csv).
 
+### El episodio en video
+
+Lo anterior, en movimiento. El reloj avanza media hora por cuadro, desde una
+hora antes del primer pase hasta el último: cada pase enciende sus detecciones
+y agrega su anillo a la envolvente, y los anillos se apagan con las horas, de
+amarillo a brasa. La noche oscurece el fondo, no el fuego; en la línea de
+tiempo, los pases nocturnos van en azul. Al cierre, con el reloj detenido en
+el último pase, aparecen el área quemada de 500 m, el perímetro de la
+cicatriz Sentinel-2 y la cifra oficial: las cuatro cifras en un solo cuadro.
+
+<video controls muted playsinline style="width: 100%; max-width: 540px;" src="`r file.path("..", tar_read(video_catalina, store = almacen))`"></video>
+
 ## Los reportes
 
 ```{r}
