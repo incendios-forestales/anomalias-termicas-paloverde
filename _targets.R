@@ -370,6 +370,25 @@ list(
                              "outputs/tables/pases_catalina_2026.csv"),
              format = "file"),
 
+  # --- Video del episodio Catalina -----------------------------------------
+  # Fondo de relieve con el encuadre del sector (mismo estilo que el video de
+  # 25 años) y el MP4: las isócronas animadas al ritmo del reloj y, al cierre,
+  # el área quemada (VNP64A1, vía S-NPP), la cicatriz Sentinel-2 y la cifra
+  # oficial. Ver R/video_episodio.R.
+  tar_target(relieve_catalina,
+             fondo_relieve_video(archivos_dem, parque, bbox_descarga,
+                                 archivos_worldcover,
+                                 layout_episodio(sector_evento("catalina_2026",
+                                                               humedales)))),
+  tar_target(video_catalina,
+             generar_video_episodio(isocronas_catalina, cicatriz_catalina,
+                                    quemas_evento("catalina_2026",
+                                                  area_quemada_parque_snpp),
+                                    parque, humedales, relieve_catalina,
+                                    "outputs/figs/video_catalina_2026.mp4",
+                                    etiquetas_snpp$etiqueta_ba),
+             format = "file"),
+
   # --- Reportes Quarto ------------------------------------------------------
   # Se escriben explícitamente: son el elemento menos uniforme del proyecto
   # (su prosa es distinta por definición) y son pocos. tar_quarto solo detecta

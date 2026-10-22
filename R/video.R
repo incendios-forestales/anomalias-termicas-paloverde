@@ -146,14 +146,19 @@ decodificar_terrarium <- function(archivo, x, y, zoom) {
 
 # Medidas del lienzo en coordenadas de datos (CRTM05). `px(n)` convierte
 # píxeles a metros del lienzo, para posicionar texto de forma determinista.
-layout_video <- function() {
-  ancho_m <- XLIM_VIDEO[2] - XLIM_VIDEO[1]
+# Por omisión encuadra el parque completo; el video del episodio pasa su
+# propio encuadre (ver layout_episodio() en R/video_episodio.R) y comparte
+# el lienzo, el encabezado y la tipografía.
+layout_video <- function(xlim = XLIM_VIDEO, ymin = YMIN_VIDEO) {
+  xlim <- unname(xlim)
+  ymin <- unname(ymin)
+  ancho_m <- xlim[2] - xlim[1]
   m_por_px <- ancho_m / ANCHO_PX
   alto_m <- m_por_px * ALTO_PX
-  ymax <- YMIN_VIDEO + alto_m
+  ymax <- ymin + alto_m
   list(
-    xlim = XLIM_VIDEO,
-    ylim = c(YMIN_VIDEO, ymax),
+    xlim = xlim,
+    ylim = c(ymin, ymax),
     y_mapa = ymax - m_por_px * ENCABEZADO_PX,  # borde superior del mapa
     px = function(n) n * m_por_px
   )
@@ -167,9 +172,10 @@ layout_video <- function() {
 # "fuera de la región de interés" del estilo de referencia y deja que la
 # cobertura del parque destaque). Retorna una imagen RGBA aplanada + su
 # extensión, lista para annotation_raster (objeto plano, serializable como
-# target rds).
+# target rds). `lay` es el encuadre: el del parque por omisión o el de un
+# episodio.
 fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
-                                archivos_worldcover) {
+                                archivos_worldcover, lay = layout_video()) {
   indices <- regmatches(basename(archivos_dem),
                         regexec("z(\\d+)_x(\\d+)_y(\\d+)\\.png", basename(archivos_dem)))
   teselas <- lapply(seq_along(archivos_dem), function(i) {
@@ -178,7 +184,6 @@ fondo_relieve_video <- function(archivos_dem, parque, bbox_wgs84,
     y <- as.integer(indices[[i]][4])
     decodificar_terrarium(archivos_dem[i], x, y, z)
   })
-  lay <- layout_video()
   dem <- terra::merge(terra::sprc(teselas)) |>
     terra::project(CRS_CRTM05) |>
     terra::crop(terra::ext(lay$xlim[1], lay$xlim[2], lay$ylim[1], lay$y_mapa)) |>
@@ -312,10 +317,11 @@ esparcir <- function(x) gsub("(?<=.)(?=.)", " ", toupper(x), perl = TRUE)
 
 # Retícula manual de meridianos y paralelos recortada al área del mapa (una
 # retícula de coord_sf invadiría la banda del encabezado). Retorna una lista
-# con las líneas (sf) y los rótulos (data.frame en CRTM05).
-reticula_video <- function(lay) {
-  lons <- seq(-85.40, -85.20, by = 0.10)
-  lats <- seq(10.25, 10.45, by = 0.10)
+# con las líneas (sf) y los rótulos (data.frame en CRTM05). Los meridianos y
+# paralelos por omisión son los del encuadre del parque; otro encuadre pasa
+# los suyos.
+reticula_video <- function(lay, lons = seq(-85.40, -85.20, by = 0.10),
+                           lats = seq(10.25, 10.45, by = 0.10)) {
   marco <- sf::st_polygon(list(cbind(
     c(lay$xlim[1], lay$xlim[2], lay$xlim[2], lay$xlim[1], lay$xlim[1]),
     c(lay$ylim[1], lay$ylim[1], lay$y_mapa, lay$y_mapa, lay$ylim[1])
@@ -329,20 +335,22 @@ reticula_video <- function(lay) {
   }
   lineas <- c(
     do.call(c, lapply(lons, function(l) {
-      linea(cbind(l, seq(10.15, 10.55, length.out = 60)))
+      linea(cbind(l, seq(min(lats) - 0.1, max(lats) + 0.1, length.out = 60)))
     })),
     do.call(c, lapply(lats, function(l) {
-      linea(cbind(seq(-85.50, -85.10, length.out = 60), l))
+      linea(cbind(seq(min(lons) - 0.1, max(lons) + 0.1, length.out = 60), l))
     }))
   ) |> sf::st_intersection(marco)
 
-  # Rótulos: meridianos abajo, paralelos a la izquierda (coma decimal).
-  grados <- function(v) gsub("\\.", ",", sprintf("%.1f°", abs(v)))
+  # Rótulos: meridianos abajo, paralelos a la izquierda (coma decimal, con
+  # los decimales que el paso exija: 0,1° en el parque, 0,05° en el episodio).
+  decimales <- if (all(abs(c(lons, lats) * 10 - round(c(lons, lats) * 10)) < 1e-6)) 1 else 2
+  grados <- function(v) gsub("\\.", ",", sprintf(paste0("%.", decimales, "f°"), abs(v)))
   pos_lon <- sf::st_coordinates(sf::st_transform(
-    sf::st_sfc(lapply(lons, function(l) sf::st_point(c(l, 10.25))), crs = CRS_WGS84),
+    sf::st_sfc(lapply(lons, function(l) sf::st_point(c(l, min(lats)))), crs = CRS_WGS84),
     CRS_CRTM05))
   pos_lat <- sf::st_coordinates(sf::st_transform(
-    sf::st_sfc(lapply(lats, function(l) sf::st_point(c(-85.40, l))), crs = CRS_WGS84),
+    sf::st_sfc(lapply(lats, function(l) sf::st_point(c(min(lons), l))), crs = CRS_WGS84),
     CRS_CRTM05))
   rotulos <- rbind(
     data.frame(x = pos_lon[, 1], y = lay$ylim[1] + lay$px(56),

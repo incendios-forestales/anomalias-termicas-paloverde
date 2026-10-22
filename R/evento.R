@@ -399,7 +399,13 @@ isocronas_evento <- function(clave_evento, firms_parques, etiquetas,
   anillos <- dplyr::left_join(anillos, pases[, c("pase", "horas", "instante",
                                                   "plataforma")], by = "pase")
 
-  list(evento = e, pases = pases, anillos = anillos,
+  # Las detecciones puntuales con su pase: el video del episodio las dibuja
+  # con resplandor en el momento del pase (los anillos solo dicen qué agregó
+  # cada pase a la envolvente, no dónde estaba el fuego en ese instante).
+  detecciones <- detecciones[, c("plataforma", "pase", "instante", "frp",
+                                 "daynight")]
+
+  list(evento = e, pases = pases, anillos = anillos, detecciones = detecciones,
        plataformas = purrr::map_chr(etiquetas, "corta"))
 }
 
